@@ -1,0 +1,8 @@
+{
+	"name" : "nesEmulator",
+	"description" : "A minimal D bundle.",
+	"dependencies" : {
+		"derelict-sdl2": ">=1.9.1"
+	},
+	"targetPath" : "build/"
+}
