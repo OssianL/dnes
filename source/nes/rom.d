@@ -1,12 +1,18 @@
 import std.file;
 import ppu;
 
+enum PrgBankSize = 16384;
+enum ChrBankSize = 8192;
+
+alias PrgBank = ubyte[PrgBankSize];
+alias ChrBank = ubyte[ChrBankSize];
+
 class Rom {
 	
 	private ubyte[] header;
 	private ubyte[] trainer;
-	private ubyte[] prgRom;
-	private ubyte[] chrRom;
+	private PrgBank[] prgBanks;
+	private ChrBank[] chrBanks;
 	private ubyte[] instRom;
 	private ubyte[] pRom;
 	
@@ -19,22 +25,27 @@ class Rom {
 			trainer = file[counter..counter+512];
 			counter += 512;
 		}
-		prgRom = file[counter..counter+getPrgRomSize()];
-		counter += getPrgRomSize();
-		chrRom = file[counter..counter+getChrRomSize()];
-		counter += getChrRomSize();
-		
-		
+		int prgRomSize = getPrgBankCount() * PrgBankSize;
+		int chrRomSize = getChrBankCount() * ChrBankSize
+		assert(counter + prgRomSize + chrRomSize <= file.length);
+		prgRom = file[counter..counter+prgRomSize];
+		counter += getPrgBankCount() * PrgBankSize;
+		chrRom = file[counter..counter+chrRomSize];
+		counter += getChrBankCount() * ChrBankSize;
+		//PlayChoice INST-ROM and PROM not implemented
 		return true;
 	}
 	
-	public int getPrgRomSize() {
-		return header[4] * 16384;
+	public int getPrgBankCount() {
+		return header[4];
+	}	
+	
+	public int getChrRomBankCount() {
+		return header[5];
 	}
 	
-	public int getChrRomSize() {
-		return header[5] * 8192;
-	}
+	public @property PrgBank[] prgBanks(return prgBanks;);
+	public @property ChrBank[] chrBanks(return chrBanks;);
 	
 	public MirroringType getMirroringType() {
 		ubyte type = header[6] & 0b00001001;
@@ -56,7 +67,7 @@ class Rom {
 	}
 	
 	public TvSystem getTvSystem() {
-		return TvSystem.NTSC;
+		return TvSystem.NTSC; //TODO
 	}
 	
 	private bool headerIsValid() {

@@ -10,12 +10,14 @@ enum TvSystem {
 
 class Nes {
 	
-	private Cpu cpu;
-	private Ppu ppu;
-	private Apu apu;
+	private Cpu _cpu;
+	private Ppu _ppu;
+	private Apu _apu;
 	
 	this() {
-		
+		_cpu = new Cpu();
+		_ppu = new Ppu();
+		_apu = new Apu();
 	}
 	
 	public void reset() {
@@ -25,4 +27,8 @@ class Nes {
 	private void masterCycle() {
 		
 	}
+	
+	public @property cpu() {return _cpu;}
+	public @property ppu() {return _ppu;}
+	public @property apu() {return _apu;}
 }

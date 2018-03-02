@@ -31,31 +31,26 @@ class Ppu {
 	private ubyte[256] spriteRam;
 	private ubyte[32] secondarySpriteRam;
 	
-	/*
-	controlRegiter1 bits:
-	76543210
-	||||||++- Base nametable address (0 = $2000; 1 = $2400; 2 = $2800; 3 = $2C00)
-	|||||+--- VRAM address increment per CPU read/write of PPUDATA (0: add 1, going across; 1: add 32, going down)
-	||||+---- Sprite pattern table address for 8x8 sprites (0: $0000; 1: $1000; ignored in 8x16 mode)
-	|||+----- Background pattern table address (0: $0000; 1: $1000)
-	||+------ Sprite size (0: 8x8; 1: 8x16)
-	|+------- PPU master/slave select (0: read backdrop from EXT pins; 1: output color on EXT pins)
-	+-------- Generate an NMI at the start of the vertical blanking interval (0: off; 1: on)
-	*/
-	private ubyte controlRegister1; //$2000
-	/*
-	controlRegister2 bits:
-	76543210
-	|||||||+- Grayscale (0: normal color; 1: produce a monochrome display)
-	||||||+-- 1: Show background in leftmost 8 pixels of screen; 0: Hide
-	|||||+--- 1: Show sprites in leftmost 8 pixels of screen; 0: Hide
-	||||+---- 1: Show background
-	|||+----- 1: Show sprites
-	||+------ Intensify reds (and darken other colors)
-	|+------- Intensify greens (and darken other colors)
-	+-------- Intensify blues (and darken other colors)
-	*/
-	private ubyte controlRegister2; //$2001
+	
+	//controllerRegister1 $2000
+	private ubyte baseNametableAddress; //Base nametable address (0 = $2000; 1 = $2400; 2 = $2800; 3 = $2C00)
+	private bool vramAddressIncrement; //VRAM address increment per CPU read/write of PPUDATA (0: add 1, going across; 1: add 32, going down)
+	private bool spritePatternTableAddress; //Sprite pattern table address for 8x8 sprites (0: $0000; 1: $1000; ignored in 8x16 mode)
+	private bool backgroundPatternTableAddress; //Background pattern table address (0: $0000; 1: $1000)
+	private bool spriteSize; //Sprite size (0: 8x8; 1: 8x16)
+	private bool ppuMasterSlave; //PPU master/slave select (0: read backdrop from EXT pins; 1: output color on EXT pins)
+	private bool generateNmi; //Generate an NMI at the start of the vertical blanking interval (0: off; 1: on)
+
+	//controllerRegister2 $2001
+	private bool grayscale; //Grayscale (0: normal color; 1: produce a monochrome display)
+	private bool showBackgroundInLeft; //1: Show background in leftmost 8 pixels of screen; 0: Hide
+	private bool showSpritesInLeft; //1: Show sprites in leftmost 8 pixels of screen; 0: Hide
+	private bool showBackground; //1: Show background
+	private bool showSprites; //1: Show sprites
+	private bool intensifyReds; //Intensify reds (and darken other colors)
+	private bool intensifyGreens; //Intensify greens (and darken other colors)
+	private bool intensifyBlues; //Intensify blues (and darken other colors)
+
 	/*
 	statusRegister bits:
 	7654 3210
@@ -91,12 +86,48 @@ class Ppu {
 	
 	//$2000
 	public void setControlRegister1(ubyte controlRegister1) {
-		this.controlRegister1 = controlRegister1;
+		/*
+		controlRegiter1 bits:
+		76543210
+		||||||++- Base nametable address (0 = $2000; 1 = $2400; 2 = $2800; 3 = $2C00)
+		|||||+--- VRAM address increment per CPU read/write of PPUDATA (0: add 1, going across; 1: add 32, going down)
+		||||+---- Sprite pattern table address for 8x8 sprites (0: $0000; 1: $1000; ignored in 8x16 mode)
+		|||+----- Background pattern table address (0: $0000; 1: $1000)
+		||+------ Sprite size (0: 8x8; 1: 8x16)
+		|+------- PPU master/slave select (0: read backdrop from EXT pins; 1: output color on EXT pins)
+		+-------- Generate an NMI at the start of the vertical blanking interval (0: off; 1: on)
+		*/
+		baseNametableAddress 			= controlRegister1 & 0b00000011;
+		vramAddressIncrement			= controlRegister1 & 0b00000100 != 0;
+		spritePatternTableAddress		= controlRegister1 & 0b00001000 != 0;
+		backgroundPatternTableAddress	= controlRegister1 & 0b00010000 != 0;
+		spriteSize						= controlRegister1 & 0b00100000 != 0;
+		ppuMasterSlave					= controlRegister1 & 0b01000000 != 0;
+		generateNmi						= controlRegister1 & 0b10000000 != 0;
 	}
 	
 	//$2001
 	public void setControlRegister2(ubyte controlRegister2) {
-		this.controlRegister2 = controlRegister2;
+		/*
+		controlRegister2 bits:
+		76543210
+		|||||||+- Grayscale (0: normal color; 1: produce a monochrome display)
+		||||||+-- 1: Show background in leftmost 8 pixels of screen; 0: Hide
+		|||||+--- 1: Show sprites in leftmost 8 pixels of screen; 0: Hide
+		||||+---- 1: Show background
+		|||+----- 1: Show sprites
+		||+------ Intensify reds (and darken other colors)
+		|+------- Intensify greens (and darken other colors)
+		+-------- Intensify blues (and darken other colors)
+		*/
+		grayscale				= controlRegister2 & 0b00000001 != 0;
+		showBackgroundInLeft	= controlRegister2 & 0b00000010 != 0;
+		showSpritesInLeft		= controlRegister2 & 0b00000100 != 0;
+		showBackground			= controlRegister2 & 0b00001000 != 0;
+		showSprites				= controlRegister2 & 0b00010000 != 0;
+		intensifyReds			= controlRegister2 & 0b00100000 != 0;
+		intensifyGreens			= controlRegister2 & 0b01000000 != 0;
+		intensifyBlues			= controlRegister2 & 0b10000000 != 0;
 	}
 	
 	//$2002
@@ -151,8 +182,14 @@ class Ppu {
 	
 	//$2007
 	public ubyte readVram() {
-		return ppuRam[wrap(vramAddress)];
+		return readVram(vramAddress);
 		//TODO increment address
+	}
+	
+	public ubyte readVram(ushort address) {
+		address = wrap(address);
+		if(mapper.useChrRom(address)) return mapper.chrRead(address); //use chrRom or don't
+		return ppuRam[address];
 	}
 	
 	//$2007
