@@ -28,11 +28,11 @@ class Ppu {
 	private static final ushort spritePalette3 = 0x3F1D;
 	
 	private ubyte[0x3FFF] ppuRam;
-	private ubyte[256] spriteRam;
+	private ubyte[256] oamRam;
 	private ubyte[32] secondarySpriteRam;
 	
 	
-	//controllerRegister1 $2000
+	//controllerRegister $2000
 	private ubyte baseNametableAddress; //Base nametable address (0 = $2000; 1 = $2400; 2 = $2800; 3 = $2C00)
 	private bool vramAddressIncrement; //VRAM address increment per CPU read/write of PPUDATA (0: add 1, going across; 1: add 32, going down)
 	private bool spritePatternTableAddress; //Sprite pattern table address for 8x8 sprites (0: $0000; 1: $1000; ignored in 8x16 mode)
@@ -41,7 +41,7 @@ class Ppu {
 	private bool ppuMasterSlave; //PPU master/slave select (0: read backdrop from EXT pins; 1: output color on EXT pins)
 	private bool generateNmi; //Generate an NMI at the start of the vertical blanking interval (0: off; 1: on)
 
-	//controllerRegister2 $2001
+	//maskRegister $2001
 	private bool grayscale; //Grayscale (0: normal color; 1: produce a monochrome display)
 	private bool showBackgroundInLeft; //1: Show background in leftmost 8 pixels of screen; 0: Hide
 	private bool showSpritesInLeft; //1: Show sprites in leftmost 8 pixels of screen; 0: Hide
@@ -51,28 +51,19 @@ class Ppu {
 	private bool intensifyGreens; //Intensify greens (and darken other colors)
 	private bool intensifyBlues; //Intensify blues (and darken other colors)
 
-	/*
-	statusRegister bits:
-	7654 3210
-	|||| ||||
-	|||+-++++- Least significant bits previously written into a PPU register
-	|||        (due to register not being updated for this address)
-	||+------- Sprite overflow.
-	|+-------- Sprite 0 Hit.  Set when a nonzero pixel of sprite 0 overlaps
-	|          a nonzero background pixel; cleared at dot 1 of the pre-render
-	|          line.  Used for raster timing.
-	+--------- Vertical blank has started (0: not in VBLANK; 1: in VBLANK).
-	           Set at dot 1 of line 241 (the line *after* the post-render
-	           line); cleared after reading $2002 and at dot 1 of the
-	           pre-render line.
-	*/
-	private ubyte statusRegister; //$2002
-	private ubyte sprRamAddress; //$2003
+	//statusRegister $2002
+	private ubyte lastWriteToPpuRegister; //Least significant bits previously written into a PPU register (due to register not being updated for this address)
+	private bool spriteOverflow; //Sprite overflow.
+	private bool sprite0Hit; //Sprite 0 Hit.  Set when a nonzero pixel of sprite 0 overlaps a nonzero background pixel; cleared at dot 1 of the pre-render line.  Used for raster timing.
+	private bool vBlankStarted; //Vertical blank has started (0: not in VBLANK; 1: in VBLANK). Set at dot 1 of line 241 (the line *after* the post-render line); cleared after reading $2002 and at dot 1 of the pre-render line.
+
+	private ubyte oamAddress; //$2003
 	private ubyte scrollX; //$2005 range 0-255
 	private ubyte scrollY; //$2005 range 0-239, values of 240 to 255 are treated as -16 through -1 in a way
 	private ushort vramAddress; //$2006 VRAM reading and writing shares the same internal address register that rendering uses
-	private ushort tempVramAddress;
+	private ushort tempVramAddress; //address latch
 	private bool writeToggle = false; //false if waiting for first byte, used for both $2005 and $2006
+	private ubyte vramDataBuffer; //
 	
 	private uint cycles = 0;
 	
@@ -84,73 +75,107 @@ class Ppu {
 		
 	}
 	
-	//$2000
-	public void setControlRegister1(ubyte controlRegister1) {
-		/*
-		controlRegiter1 bits:
-		76543210
-		||||||++- Base nametable address (0 = $2000; 1 = $2400; 2 = $2800; 3 = $2C00)
-		|||||+--- VRAM address increment per CPU read/write of PPUDATA (0: add 1, going across; 1: add 32, going down)
-		||||+---- Sprite pattern table address for 8x8 sprites (0: $0000; 1: $1000; ignored in 8x16 mode)
-		|||+----- Background pattern table address (0: $0000; 1: $1000)
-		||+------ Sprite size (0: 8x8; 1: 8x16)
-		|+------- PPU master/slave select (0: read backdrop from EXT pins; 1: output color on EXT pins)
-		+-------- Generate an NMI at the start of the vertical blanking interval (0: off; 1: on)
-		*/
-		baseNametableAddress 			= controlRegister1 & 0b00000011;
-		vramAddressIncrement			= controlRegister1 & 0b00000100 != 0;
-		spritePatternTableAddress		= controlRegister1 & 0b00001000 != 0;
-		backgroundPatternTableAddress	= controlRegister1 & 0b00010000 != 0;
-		spriteSize						= controlRegister1 & 0b00100000 != 0;
-		ppuMasterSlave					= controlRegister1 & 0b01000000 != 0;
-		generateNmi						= controlRegister1 & 0b10000000 != 0;
+	/* $2000
+	controlRegiter bits:
+	76543210
+	||||||++- baseNametableAddress
+	|||||+--- vramAddressIncrement
+	||||+---- spritePatternTableAddress
+	|||+----- backgroundPatternTableAddress
+	||+------ spriteSize
+	|+------- ppuMasterSlave
+	+-------- generateNmi
+	*/
+	public void writeControlRegister(ubyte value) {
+		baseNametableAddress 			= value & 0b00000011;
+		vramAddressIncrement			= value & 0b00000100 != 0;
+		spritePatternTableAddress		= value & 0b00001000 != 0;
+		backgroundPatternTableAddress	= value & 0b00010000 != 0;
+		spriteSize						= value & 0b00100000 != 0;
+		ppuMasterSlave					= value & 0b01000000 != 0;
+		generateNmi						= value & 0b10000000 != 0;
+		lastWriteToPpuRegister = value;
 	}
 	
-	//$2001
-	public void setControlRegister2(ubyte controlRegister2) {
-		/*
-		controlRegister2 bits:
-		76543210
-		|||||||+- Grayscale (0: normal color; 1: produce a monochrome display)
-		||||||+-- 1: Show background in leftmost 8 pixels of screen; 0: Hide
-		|||||+--- 1: Show sprites in leftmost 8 pixels of screen; 0: Hide
-		||||+---- 1: Show background
-		|||+----- 1: Show sprites
-		||+------ Intensify reds (and darken other colors)
-		|+------- Intensify greens (and darken other colors)
-		+-------- Intensify blues (and darken other colors)
-		*/
-		grayscale				= controlRegister2 & 0b00000001 != 0;
-		showBackgroundInLeft	= controlRegister2 & 0b00000010 != 0;
-		showSpritesInLeft		= controlRegister2 & 0b00000100 != 0;
-		showBackground			= controlRegister2 & 0b00001000 != 0;
-		showSprites				= controlRegister2 & 0b00010000 != 0;
-		intensifyReds			= controlRegister2 & 0b00100000 != 0;
-		intensifyGreens			= controlRegister2 & 0b01000000 != 0;
-		intensifyBlues			= controlRegister2 & 0b10000000 != 0;
+	/* $2001
+	mask register bits:
+	76543210
+	|||||||+- grayscale
+	||||||+-- showBackgroundInLeft
+	|||||+--- showSpritesInLeft
+	||||+---- showBackground
+	|||+----- showSprites
+	||+------ intensifyReds
+	|+------- intensifyGreens
+	+-------- intensifyBlues
+	*/
+	public void writeMaskRegister(ubyte value) {
+		grayscale				= value & 0b00000001 != 0;
+		showBackgroundInLeft	= value & 0b00000010 != 0;
+		showSpritesInLeft		= value & 0b00000100 != 0;
+		showBackground			= value & 0b00001000 != 0;
+		showSprites				= value & 0b00010000 != 0;
+		intensifyReds			= value & 0b00100000 != 0;
+		intensifyGreens			= value & 0b01000000 != 0;
+		intensifyBlues			= value & 0b10000000 != 0;
+		lastWriteToPpuRegister = value;
 	}
 	
-	//$2002
+	/* $2002
+	statusRegister bits:
+	7654 3210
+	|||| ||||
+	|||+-++++- lastWriteToPpuRegister
+	||+------- spriteOverflow
+	|+-------- sprite0Hit
+	+--------- vBlankStarted
+	*/
 	public ubyte readStatusRegister() {
+		ubyte status = lastWriteToPpuRegister;
+		if(sriteOverflow) status |= 0b00100000;
+		if(sprite0Hit) status |= 0b01000000;
+		if(vBlankStarted) status |= 0b10000000;
+		//Reading the status register will clear vBlankStarted mentioned above and also the address latch used by PPUSCROLL and PPUADDR. It does not clear the sprite 0 hit or overflow bit.
+		vBlankStarted = false;
 		writeToggle = false;
-		return this.statusRegister;
-		//TODO: clear bits and stuff http://wiki.nesdev.com/w/index.php/PPU_registers#Status_.28.242002.29_.3C_read
+		return status;
+		/*
+		TODO:
+		Once the sprite 0 hit flag is set, it will not be cleared until the end of the next vertical blank. If attempting to use this flag for raster timing, it is important to ensure that the sprite 0 hit check happens outside of vertical blank, otherwise the CPU will "leak" through and the check will fail. The easiest way to do this is to place an earlier check for D6 = 0, which will wait for the pre-render scanline to begin.
+		If using sprite 0 hit to make a bottom scroll bar below a vertically scrolling or freely scrolling playfield, be careful to ensure that the tile in the playfield behind sprite 0 is opaque.
+		Sprite 0 hit is not detected at x=255, nor is it detected at x=0 through 7 if the background or sprites are hidden in this area.
+		See: PPU rendering for more information on the timing of setting and clearing the flags.
+		Some Vs. System PPUs return a constant value in D4-D0 that the game checks.
+		Caution: Reading PPUSTATUS at the exact start of vertical blank will return 0 in bit 7 but clear the latch anyway, causing the program to miss frames. See NMI for details.
+		*/
 	}
 	
 	//$2003
-	public void setSprAddress(ubyte address) {
-		//http://wiki.nesdev.com/w/index.php/PPU_registers#Obscure_details_of_OAMADDR
+	public void writeOamAddress(ubyte address) {
+		oamAddress = address;
+		//TODO: http://wiki.nesdev.com/w/index.php/PPU_registers#PPUADDR
 	}
 	
 	//$2004
-	public void writeSpr(ubyte data) {
-		
+	public void writeOamData(ubyte value) {
+		/*Writes to OAMDATA during rendering (on the pre-render line and the visible lines 0-239,
+		provided either sprite or background rendering is enabled) do not modify values in OAM,
+		but do perform a glitchy increment of OAMADDR, bumping only the high 6 bits
+		(i.e., it bumps the [n] value in PPU sprite evaluation - it's plausible that it could bump
+		the low bits instead depending on the current status of sprite evaluation).
+		This extends to DMA transfers via OAMDMA, since that uses writes to $2004.
+		For emulation purposes, it is probably best to completely ignore writes during rendering.
+		*/
+		//TODO: ignore during rendering
+		oamRam[oamAddress] = value;
+		oamAddress++;
 	}
 	
 	//$2004
-	public ubyte readSpr() {
-		assert(false);
-		//Reading OAMDATA while the PPU is rendering will expose internal OAM accesses during sprite evaluation and loading.
+	public ubyte readOamData() {
+		//reads during vertical or forced blanking return the value from OAM at that address but do not increment.
+		//TODO:Reading OAMDATA while the PPU is rendering will expose internal OAM accesses during sprite evaluation and loading.
+		return oamRam[oamAddress];
 	}
 	
 	//$2005 2 writes needed. first x scroll then y scroll
@@ -182,30 +207,48 @@ class Ppu {
 	
 	//$2007
 	public ubyte readVram() {
-		return readVram(vramAddress);
-		//TODO increment address
+		ubyte value;
+		//TODO: do some memory mirroring?
+		if(vramAddress >= 0x3f00 && vramAddress <= 0x3fff) {
+			value = readVram(vramAddress);
+			vramDataBuffer = readVram(vramAddress - 0x2000); //is this right? unclear specs
+		}
+		else {
+			value = vramDataBuffer;
+			vramDataBuffer = readVram(vramAddress);
+		}
+		if(vramAddressIncrement) vramAddress += 32;
+		else vramAddress += 1;
+		return value;
 	}
 	
 	public ubyte readVram(ushort address) {
-		address = wrap(address);
 		if(mapper.useChrRom(address)) return mapper.chrRead(address); //use chrRom or don't
-		return ppuRam[address];
+		return ppuRam[internalMemoryWrap(address)];
 	}
 	
 	//$2007
-	public void writeVram() {
-		//TODO
+	public void writeVram(ubyte value) {
+		writeVram(vramAddress, value);
+		if(vramAddressIncrement) vramAddress += 32;
+		else vramAddress += 1;
+		//TODO???? VRAM reading and writing shares the same internal address register that rendering uses. So after loading data into video memory, the program should reload the scroll position afterwards with PPUSCROLL writes in order to avoid wrong scrolling.
+	}
+	
+	public void writeVram(ushort address, ubyte value) {
+		if(mapper.useChrRom(address)) mapper.chrWrite(address, value);//can write to chrRom?
+		else ppuRam[internalMemoryWrap(address)] = value;
 	}
 	
 	/*
-	public void setNmiEnabled(bool enabled) {
-		if(enabled) controlRegister1 |= 0b10000000;
-		else controlRegister1 &= 0b10000000;
+	public void oamDma(ubyte[256] oamData) {
+		ubyte start = oamAddress;
+		for(int i = 0; i < 256; i++) {
+			oamAddress = start + i;
+			if(oamAddress > 255) oamAddress -= 256;
+			oamRam[oamAddress] = oamData[i];
+		}
 	}*/
-	
-	public bool getNmiEnabled() {
-		return cast(bool) controlRegister1 & 0b10000000;
-	}
 	
 	public ushort getBackgroundPatternTableAddress() {
 		if(controlRegister1 & 0b00010000) return 0x1000;
@@ -218,11 +261,6 @@ class Ppu {
 		else return 0;
 	}
 	
-	public ubyte getAddressIncrement() {
-		if(controlRegister1 & 0b00000100) return 32; //going down
-		else return 1; //going across
-	}
-	
 	public ushort getBaseNameTableAddress() {
 		ubyte value = cast(ubyte) (controlRegister1 & 0b00000011);
 		if(value == 0) return 0x2000;
@@ -232,40 +270,44 @@ class Ppu {
 		else assert(false);
 	}
 	
-	private ushort wrap(ushort address) {
-		return address % 0x3FFF;
+	private ushort internalMemoryMirroring(ushort address) {
+		address %= 0x3FFF; //$4000-$10000 mirrors $0000-$3fff
+		if(address >= 0x3000 && address < 0x3f00) address -= 0x2000; //$3000-$3eff mirrors $2000-$2eff
+		else if(address >= 0x3f20 && address < 0x4000) address -= 0x20; //$3f20-$3fff mirrors $3f00-$3f1f
+		return address;
+		//TODO make sure this is right!!!
 	}
 	
 	//SPRITE RAM STUFF
 	
 	private ubyte getSpriteX(ubyte spriteIndex) {
-		return spriteRam[(spriteIndex * 4) + 3];
+		return oamRam[(spriteIndex * 4) + 3];
 	}
 	
 	private ubyte getSpriteY(ubyte spriteIndex) {
-		return spriteRam[(spriteIndex * 4) + 0];
+		return oamRam[(spriteIndex * 4) + 0];
 	}
 	
 	private ubyte getSpriteTileIndex(ubyte spriteIndex) {
-		return spriteRam[(spriteIndex * 4) + 1];
+		return oamRam[(spriteIndex * 4) + 1];
 	}
 	
 	private ubyte getSpritePalette(ubyte spriteIndex) {
-		return spriteRam[(spriteIndex * 4) + 2] & 0b00000011; //TODO:  +4???
+		return oamRam[(spriteIndex * 4) + 2] & 0b00000011; //TODO:  +4???
 	}
 	
 	private bool getSpritePriority(ubyte spriteIndex) {
-		if(spriteRam[(spriteIndex * 4) + 2] & 0b00100000) return true;
+		if(oamRam[(spriteIndex * 4) + 2] & 0b00100000) return true;
 		return false;
 	}
 	
 	private bool getSpriteHorizontalFlip(ubyte spriteIndex) {
-		if(spriteRam[(spriteIndex * 4) + 2] & 0b01000000) return true;
+		if(oamRam[(spriteIndex * 4) + 2] & 0b01000000) return true;
 		return false;
 	}
 	
 	private bool getSpriteVerticalFlip(ubyte spriteIndex) {
-		if(spriteRam[(spriteIndex * 4) + 2] & 0b10000000) return true;
+		if(oamRam[(spriteIndex * 4) + 2] & 0b10000000) return true;
 		return false;
 	}
 	

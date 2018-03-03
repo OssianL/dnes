@@ -300,6 +300,6 @@ class CpuMemory {
 			ubyte value = read(realAddress + i);
 			write(0x2004, value);
 		}
-		cpu.stealCycles(512);
+		cpu.stall(513 + (cpu.getCycles() % 2));
 	}
 }

@@ -921,7 +921,11 @@ class Cpu {
 		return cast(bool) (p & breakFlagMask);
 	}
 	
-	public void stealCycles(int amount) {
+	public uint getCycles() {
+		return cycles;
+	}
+	
+	public void stall(int cycles) {
 		assert(false, "TODO stealCycles");
 	}
 	
@@ -1005,6 +1009,7 @@ class Cpu {
 		value += popStack();
 		return value;
 	}
+
 }
 
 

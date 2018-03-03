@@ -56,6 +56,10 @@ class Mapper0 : Mapper {
 		return 0;
 	}
 	
+	public void chrWrite(ushort address, ubyte value) {
+		assert(false);
+	}
+	
 	public bool useChrRom(ushort address) {
 		return false;
 	}
