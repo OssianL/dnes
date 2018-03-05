@@ -1,3 +1,5 @@
+import mapper;
+import derelict.sdl2.sdl;
 
 enum MirroringType {
 	HORIZONTAL,
@@ -17,19 +19,20 @@ const int[64] colorPalette = [
 
 class Ppu {
 	
-	private static final ushort backgroundColorAddress = 0x3F00;
-	private static final ushort backgroundPalette0 = 0x3F01;
-	private static final ushort backgroundPalette1 = 0x3F05;
-	private static final ushort backgroundPalette2 = 0x3F09;
-	private static final ushort backgroundPalette3 = 0x3F0D;
-	private static final ushort spritePalette0 = 0x3F11;
-	private static final ushort spritePalette1 = 0x3F15;
-	private static final ushort spritePalette2 = 0x3F19;
-	private static final ushort spritePalette3 = 0x3F1D;
+	enum backgroundColorAddress = 0x3F00;
+	enum backgroundPalette0 = 0x3F01;
+	enum backgroundPalette1 = 0x3F05;
+	enum backgroundPalette2 = 0x3F09;
+	enum backgroundPalette3 = 0x3F0D;
+	enum spritePalette0 = 0x3F11;
+	enum spritePalette1 = 0x3F15;
+	enum spritePalette2 = 0x3F19;
+	enum spritePalette3 = 0x3F1D;
 	
 	private ubyte[0x3FFF] ppuRam;
 	private ubyte[256] oamRam;
 	private ubyte[32] secondarySpriteRam;
+	private Mapper mapper;
 	
 	
 	//controllerRegister $2000
@@ -62,18 +65,60 @@ class Ppu {
 	private ubyte scrollY; //$2005 range 0-239, values of 240 to 255 are treated as -16 through -1 in a way
 	private ushort vramAddress; //$2006 VRAM reading and writing shares the same internal address register that rendering uses
 	private ushort tempVramAddress; //address latch
-	private bool writeToggle = false; //false if waiting for first byte, used for both $2005 and $2006
+	private bool writeToggle; //false if waiting for first byte, used for both $2005 and $2006
 	private ubyte vramDataBuffer; //
 	
 	private uint cycles = 0;
+	private int scanline;
+	private uint frame;
+	private bool evenFrame;
+	
 	
 	this() {
-		//TODO: http://wiki.nesdev.com/w/index.php/PPU_power_up_state
+	
+	}
+	
+	public void powerUp() {
+		writeControlRegister(0);
+		writeMaskRegister(0);
+		vBlankStarted = true;
+		sprite0Hit = false;
+		spriteOverflow = true;
+		writeOamAddress(0);
+		writeToggle = false;
+		vramDataBuffer = 0;
+		tempVramAddress = 0;
+		scrollX = 0;
+		scrollY = 0;
+		vramAddress = 0;
+		//oddFrame no ???
+		//TODO: oamRam = pattern ??? what pattern
+	}
+	
+	public void reset() {
+		writeControlRegister(0);
+		writeMaskRegister(0);
+		writeToggle = false;
+		vramDataBuffer = 0;
+		tempVramAddress = 0;
+		scrollX = 0;
+		scrollY = 0;
+		//oddFrame no ???
+		//TODO: oamRam = pattern ??? what pattern
 	}
 	
 	public void cycle() {
+		//TODO: event/odd frames cycle skip
+		//if vblank && generateNmi -> cpu.raiseInterruption(interruption.NMI);
+		bool renderingEnabled = showBackground || showSprites;
 		
 	}
+	
+	public void debugRender(SDL_Renderer* renderer) {
+		
+	}
+	
+	
 	
 	/* $2000
 	controlRegiter bits:
@@ -88,12 +133,12 @@ class Ppu {
 	*/
 	public void writeControlRegister(ubyte value) {
 		baseNametableAddress 			= value & 0b00000011;
-		vramAddressIncrement			= value & 0b00000100 != 0;
-		spritePatternTableAddress		= value & 0b00001000 != 0;
-		backgroundPatternTableAddress	= value & 0b00010000 != 0;
-		spriteSize						= value & 0b00100000 != 0;
-		ppuMasterSlave					= value & 0b01000000 != 0;
-		generateNmi						= value & 0b10000000 != 0;
+		vramAddressIncrement			= (value & 0b00000100) != 0;
+		spritePatternTableAddress		= (value & 0b00001000) != 0;
+		backgroundPatternTableAddress	= (value & 0b00010000) != 0;
+		spriteSize						= (value & 0b00100000) != 0;
+		ppuMasterSlave					= (value & 0b01000000) != 0;
+		generateNmi						= (value & 0b10000000) != 0;
 		lastWriteToPpuRegister = value;
 	}
 	
@@ -110,14 +155,14 @@ class Ppu {
 	+-------- intensifyBlues
 	*/
 	public void writeMaskRegister(ubyte value) {
-		grayscale				= value & 0b00000001 != 0;
-		showBackgroundInLeft	= value & 0b00000010 != 0;
-		showSpritesInLeft		= value & 0b00000100 != 0;
-		showBackground			= value & 0b00001000 != 0;
-		showSprites				= value & 0b00010000 != 0;
-		intensifyReds			= value & 0b00100000 != 0;
-		intensifyGreens			= value & 0b01000000 != 0;
-		intensifyBlues			= value & 0b10000000 != 0;
+		grayscale				= (value & 0b00000001) != 0;
+		showBackgroundInLeft	= (value & 0b00000010) != 0;
+		showSpritesInLeft		= (value & 0b00000100) != 0;
+		showBackground			= (value & 0b00001000) != 0;
+		showSprites				= (value & 0b00010000) != 0;
+		intensifyReds			= (value & 0b00100000) != 0;
+		intensifyGreens			= (value & 0b01000000) != 0;
+		intensifyBlues			= (value & 0b10000000) != 0;
 		lastWriteToPpuRegister = value;
 	}
 	
@@ -132,7 +177,7 @@ class Ppu {
 	*/
 	public ubyte readStatusRegister() {
 		ubyte status = lastWriteToPpuRegister;
-		if(sriteOverflow) status |= 0b00100000;
+		if(spriteOverflow) status |= 0b00100000;
 		if(sprite0Hit) status |= 0b01000000;
 		if(vBlankStarted) status |= 0b10000000;
 		//Reading the status register will clear vBlankStarted mentioned above and also the address latch used by PPUSCROLL and PPUADDR. It does not clear the sprite 0 hit or overflow bit.
@@ -179,7 +224,7 @@ class Ppu {
 	}
 	
 	//$2005 2 writes needed. first x scroll then y scroll
-	public void setScroll(ubyte scroll) {
+	public void writeScroll(ubyte scroll) {
 		if(!writeToggle) {
 			scrollX = scroll;
 			writeToggle = true;
@@ -193,7 +238,7 @@ class Ppu {
 	}
 	
 	//$2006
-	public void setVramAddress(ubyte part) {
+	public void writeVramAddress(ubyte part) {
 		if(!writeToggle) { 
 			tempVramAddress = (cast(ushort) part) << 8;
 			writeToggle = true;
@@ -211,7 +256,7 @@ class Ppu {
 		//TODO: do some memory mirroring?
 		if(vramAddress >= 0x3f00 && vramAddress <= 0x3fff) {
 			value = readVram(vramAddress);
-			vramDataBuffer = readVram(vramAddress - 0x2000); //is this right? unclear specs
+			vramDataBuffer = readVram(cast(ushort) (vramAddress - 0x2000u)); //is this right? unclear specs
 		}
 		else {
 			value = vramDataBuffer;
@@ -224,7 +269,7 @@ class Ppu {
 	
 	public ubyte readVram(ushort address) {
 		if(mapper.useChrRom(address)) return mapper.chrRead(address); //use chrRom or don't
-		return ppuRam[internalMemoryWrap(address)];
+		return ppuRam[internalMemoryMirroring(address)];
 	}
 	
 	//$2007
@@ -237,7 +282,7 @@ class Ppu {
 	
 	public void writeVram(ushort address, ubyte value) {
 		if(mapper.useChrRom(address)) mapper.chrWrite(address, value);//can write to chrRom?
-		else ppuRam[internalMemoryWrap(address)] = value;
+		else ppuRam[internalMemoryMirroring(address)] = value;
 	}
 	
 	/*
@@ -251,22 +296,21 @@ class Ppu {
 	}*/
 	
 	public ushort getBackgroundPatternTableAddress() {
-		if(controlRegister1 & 0b00010000) return 0x1000;
+		if(backgroundPatternTableAddress) return 0x1000;
 		else return 0;
 	}
 	
 	//for 8x8 sprites
 	public ushort getSpritePatternTableAddress() {
-		if(controlRegister1 & 0b00001000) return 0x1000;
+		if(spritePatternTableAddress) return 0x1000;
 		else return 0;
 	}
 	
 	public ushort getBaseNameTableAddress() {
-		ubyte value = cast(ubyte) (controlRegister1 & 0b00000011);
-		if(value == 0) return 0x2000;
-		else if(value == 1) return 0x2400;
-		else if(value == 2) return 0x2800;
-		else if(value == 3) return 0x2C00;
+		if(baseNametableAddress == 0) return 0x2000;
+		else if(baseNametableAddress == 1) return 0x2400;
+		else if(baseNametableAddress == 2) return 0x2800;
+		else if(baseNametableAddress == 3) return 0x2C00;
 		else assert(false);
 	}
 	

@@ -6,10 +6,12 @@ import derelict.sdl2.ttf;
 
 SDL_Window* patternTableWindow;
 SDL_Surface* patterTablesurface;
+SDL_Renderer* renderer;
 
 int main() {
 	loadDerelict();
 	init();
+	renderer = SDL_CreateRenderer(patternTableWindow, -1, SDL_RENDERER_ACCELERATED); 
 	SDL_Delay(5000);
 	return 0;
 }
@@ -31,8 +33,3 @@ void init() {
 	patterTablesurface = SDL_GetWindowSurface(patternTableWindow);
 }
 
-void urpo() {
-	ubyte a = 255;
-	byte b = cast(byte) a;
-	writeln(b);
-}

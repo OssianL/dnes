@@ -109,20 +109,20 @@ class Cpu {
 	
 	private Interruption interruption = Interruption.NONE;
 	private bool brkInterruption = false; //true if interruption caused by brk
-	private static final ushort irqAddress = 0xFFFE;
-	private static final ushort nmiAddress = 0xFFFA;
-	private static final ushort resetAddress = 0xFFFC;
+	enum irqAddress = 0xFFFE;
+	enum nmiAddress = 0xFFFA;
+	enum resetAddress = 0xFFFC;
 	
-	private static final ubyte negativeFlagMask = 0B10000000;
-	private static final ubyte overflowFlagMask = 0B01000000;
-	private static final ubyte breakFlagMask = 0B00010000;
-	private static final ubyte decimalFlagMask = 0B00001000; //not used
-	private static final ubyte interruptsDisabledFlagMask = 0B00000100;
-	private static final ubyte zeroFlagMask = 0B00000010;
-	private static final ubyte carryFlagMask = 0B00000001;
-	private static final ubyte signBitMask = 0b10000000;
+	enum negativeFlagMask = 0B10000000;
+	enum overflowFlagMask = 0B01000000;
+	enum breakFlagMask = 0B00010000;
+	enum decimalFlagMask = 0B00001000; //not used
+	enum interruptsDisabledFlagMask = 0B00000100;
+	enum zeroFlagMask = 0B00000010;
+	enum carryFlagMask = 0B00000001;
+	enum signBitMask = 0b10000000;
 	
-	private static final ushort stackLocation = 0x0100;
+	enum stackLocation = 0x0100;
 	
 	this() {
 		operationDelegates = [
@@ -651,8 +651,8 @@ class Cpu {
 	bit. If overflow occurs the carry bit is clear, this enables multiple byte subtraction to be performed.
 	*/
 	public void sbc(Mode mode, ubyte immediate, ushort address) {
-		int value = memory.read(mode, immediate, address);
-		uint result = getA() - value - (~getCarryFlagValue() & carryFlagMask);
+		ubyte value = memory.read(mode, immediate, address);
+		uint result = getA() - value - (~getCarryFlagValue()); //TODO: might be broken?!?! integral promotion not done for ~this.getCarryFlagValue(), use '-transition=intpromote' switch
 		updateOverflowFlag(getA(), value, result);
 		setA(result);
 		setCarryFlag(!getOverflowFlag()); //???

@@ -1,4 +1,6 @@
 import mapper;
+import nes;
+import rom;
 
 /**
 https://wiki.nesdev.com/w/index.php/INES_Mapper_000
@@ -37,7 +39,7 @@ class Mapper0 : Mapper {
 	private Rom rom;
 	
 	public this(Nes nes, Rom rom) {
-		this.nes = nes
+		this.nes = nes;
 		this.rom = rom;
 	}
 	
@@ -53,7 +55,6 @@ class Mapper0 : Mapper {
 	
 	public ubyte chrRead(ushort address) {
 		assert(false);
-		return 0;
 	}
 	
 	public void chrWrite(ushort address, ubyte value) {

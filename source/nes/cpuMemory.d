@@ -1,5 +1,6 @@
 import cpu;
 import ppu;
+import mapper;
 
 class CpuMemory {
 	private ubyte[65536] memory;
@@ -56,14 +57,14 @@ class CpuMemory {
 			else if(address == 0x2001) assert(false); //ppu control2 write only
 			else if(address == 0x2002) return ppu.readStatusRegister(); //ppu status read only
 			else if(address == 0x2003) assert(false); //ppu setSprAddress() write only
-			else if(address == 0x2004) return ppu.readSpr();
+			else if(address == 0x2004) return ppu.readOamData();
 			else if(address == 0x2005) assert(false); //ppu setScroll() write only
 			else if(address == 0x2006) assert(false); //ppu setVramAddress() write only
 			else if(address == 0x2007) return ppu.readVram();
 			else if(address == 0x4014) assert(false); //direct memory access, write only(?)
 			else assert(false);
 		}
-		else if(address >= 0x8000) return mapper.read(address);
+		else if(address >= 0x8000) return mapper.cpuRead(address);
 		else return memory[address]; //normal memory read
 	}
 	
@@ -118,18 +119,18 @@ class CpuMemory {
 		if(address >= 0x2000 && address < 0x4020) {
 			if(address < 0x4000) address = ((address - 0x2000) % 8) + 0x2000; //mirrors $2008-$4000
 			//ppu
-			if(address == 0x2000) ppu.setControlRegister1(value);
-			else if(address == 0x2001) ppu.setControlRegister2(value);
+			if(address == 0x2000) ppu.writeControlRegister(value);
+			else if(address == 0x2001) ppu.writeMaskRegister(value);
 			else if(address == 0x2002) assert(false); //ppu status read only
-			else if(address == 0x2003) ppu.setSprAddress(value);
-			else if(address == 0x2004) ppu.writeSpr(value);
-			else if(address == 0x2005) ppu.setScroll(value);
-			else if(address == 0x2006) ppu.setVramAddress(value);
-			else if(address == 0x2007) return ppu.writeVram();
+			else if(address == 0x2003) ppu.writeOamAddress(value);
+			else if(address == 0x2004) ppu.writeOamData(value);
+			else if(address == 0x2005) ppu.writeScroll(value);
+			else if(address == 0x2006) ppu.writeVramAddress(value);
+			else if(address == 0x2007) ppu.writeVram(value);
 			else if(address == 0x4014) directMemoryAccess(value);
 			else assert(false);
 		}
-		if(address >= 0x8000) mapper.write(address, value);
+		if(address >= 0x8000) mapper.cpuWrite(address, value);
 		else memory[address] = value; //normal memory write
 	}
 	
