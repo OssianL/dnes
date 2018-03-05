@@ -1,5 +1,6 @@
 import mapper;
 import derelict.sdl2.sdl;
+import cpu;
 
 enum MirroringType {
 	HORIZONTAL,
@@ -29,10 +30,15 @@ class Ppu {
 	enum spritePalette2 = 0x3F19;
 	enum spritePalette3 = 0x3F1D;
 	
+	enum cyclesPerScanline = 341;
+	enum scanlinesPerFrame = 262;
+	enum vBlankStartScanline = 241;
+	
 	private ubyte[0x3FFF] ppuRam;
 	private ubyte[256] oamRam;
 	private ubyte[32] secondarySpriteRam;
 	private Mapper mapper;
+	private Cpu cpu;
 	
 	
 	//controllerRegister $2000
@@ -110,15 +116,31 @@ class Ppu {
 	public void cycle() {
 		//TODO: event/odd frames cycle skip
 		//if vblank && generateNmi -> cpu.raiseInterruption(interruption.NMI);
+		if(cycles == 341 * 241) {
+			//vBlank
+			cpu.raiseInterruption(interruprion.NMI);
+		}
 		bool renderingEnabled = showBackground || showSprites;
 		
 	}
 	
-	public void debugRender(SDL_Renderer* renderer) {
-		
+	public void debugRenderPatternTable(SDL_Renderer* renderer) {
+		for(int i = 0; i < 512; i++) {
+			int startX = (i % 16) * 8;
+			int startY = (i / 16) * 8;
+			ubyte[] pattern = getPattern(i);
+			for(int x = 0; x < 8; x++) {
+				for(int y = 0; y < 8; y++) {
+					ubyte value = (pattern[y] & (0u << (8u - x))) >> (8u - (x - 1));
+					value |= (pattern[y+8] & (0u << (8u - x))) >> (8u - x);
+					value *= 85;
+					SDL_SetRenderDrawColor(renderer, value, value, value, 255);
+					SDL_RenderDrawPoint(renderer, startX + x, startY + y);
+				}
+			}
+		}
+			
 	}
-	
-	
 	
 	/* $2000
 	controlRegiter bits:
@@ -320,6 +342,11 @@ class Ppu {
 		else if(address >= 0x3f20 && address < 0x4000) address -= 0x20; //$3f20-$3fff mirrors $3f00-$3f1f
 		return address;
 		//TODO make sure this is right!!!
+	}
+	
+	private ubyte[] getPattern(int patternIndex) {
+		int start = patternIndex*16;
+		return ppuRam[start..start+16];
 	}
 	
 	//SPRITE RAM STUFF
