@@ -124,7 +124,8 @@ class Cpu {
 	
 	enum stackLocation = 0x0100;
 	
-	this() {
+	this(CpuMemory memory) {
+		this.memory = memory;
 		operationDelegates = [
 			Op.ADC:&adc, Op.AND:&and, Op.ASL:&asl, Op.BCC:&bcc, Op.BCS:&bcs, Op.BEQ:&beq, Op.BIT:&bit, Op.BMI:&bmi,
 			Op.BNE:&bne, Op.BPL:&bpl, Op.BRK:&brk, Op.BVC:&bvc, Op.BVS:&bvs, Op.CLC:&clc, Op.CLD:&cld, Op.CLI:&cli,

@@ -1,6 +1,7 @@
 import mapper;
-import derelict.sdl2.sdl;
 import cpu;
+import nes;
+import derelict.sdl2.sdl;
 
 enum MirroringType {
 	HORIZONTAL,
@@ -40,9 +41,7 @@ class Ppu {
 	private ubyte[0x3FFF] ppuRam;
 	private ubyte[256] oamRam;
 	private ubyte[32] secondarySpriteRam;
-	private Mapper mapper;
-	private Cpu cpu;
-	
+	private Nes nes;
 	
 	//controllerRegister $2000
 	private ubyte baseNametableAddress; //Base nametable address (0 = $2000; 1 = $2400; 2 = $2800; 3 = $2C00)
@@ -81,8 +80,8 @@ class Ppu {
 	private int scanline;
 	private uint frame;
 	
-	this() {
-	
+	this(Nes nes) {
+		this.nes = nes;
 	}
 	
 	public void powerUp() {
@@ -129,7 +128,7 @@ class Ppu {
 		}
 		else if(scanline == cyclesPerScanline && cycle == 0) {
 			//vBlank start
-			if(generateNmi) cpu.raiseInterruption(Interruption.NMI);
+			if(generateNmi) nes.cpu.raiseInterruption(Interruption.NMI);
 		}
 		else if(scanline == preRenderScanline) {
 		
@@ -314,7 +313,7 @@ class Ppu {
 	}
 	
 	public ubyte readVram(ushort address) {
-		if(mapper.useChrRom(address)) return mapper.chrRead(address); //use chrRom or don't
+		if(nes.mapper.useChrRom(address)) return nes.mapper.chrRead(address); //use chrRom or don't
 		return ppuRam[internalMemoryMirroring(address)];
 	}
 	
@@ -327,7 +326,7 @@ class Ppu {
 	}
 	
 	public void writeVram(ushort address, ubyte value) {
-		if(mapper.useChrRom(address)) mapper.chrWrite(address, value);//can write to chrRom?
+		if(nes.mapper.useChrRom(address)) nes.mapper.chrWrite(address, value);//can write to chrRom?
 		else ppuRam[internalMemoryMirroring(address)] = value;
 	}
 	

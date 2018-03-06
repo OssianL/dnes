@@ -1,20 +1,23 @@
 import cpu;
 import ppu;
 import mapper;
+import nes;
 
 class CpuMemory {
 	private ubyte[65536] memory;
-	private Cpu cpu;
-	private Ppu ppu;
-	private Mapper mapper;
+	private Nes nes;
 	private bool pageCrossed = false;
+	
+	this(Nes nes) {
+		
+	}
 	
 	public ubyte read(Mode accessMode, ubyte immediate, ushort address) {
 		if(accessMode == Mode.IMM) {
 			return immediate;
 		}
 		else if(accessMode == Mode.ACC) {
-			return cpu.getA();
+			return nes.cpu.getA();
 		}
 		else if(accessMode == Mode.ZPG) {
 			return zpgRead(immediate);
@@ -44,7 +47,7 @@ class CpuMemory {
 			return inyRead(immediate);
 		}
 		else {
-			assert(false, "memory read mode not implemented, call the police");
+			assert(false, "memory read mode not implemented");
 		}
 	}
 	
@@ -55,16 +58,16 @@ class CpuMemory {
 			//ppu
 			if(address == 0x2000) assert(false); //ppu control1 write only
 			else if(address == 0x2001) assert(false); //ppu control2 write only
-			else if(address == 0x2002) return ppu.readStatusRegister(); //ppu status read only
+			else if(address == 0x2002) return nes.ppu.readStatusRegister(); //ppu status read only
 			else if(address == 0x2003) assert(false); //ppu setSprAddress() write only
-			else if(address == 0x2004) return ppu.readOamData();
+			else if(address == 0x2004) return nes.ppu.readOamData();
 			else if(address == 0x2005) assert(false); //ppu setScroll() write only
 			else if(address == 0x2006) assert(false); //ppu setVramAddress() write only
-			else if(address == 0x2007) return ppu.readVram();
+			else if(address == 0x2007) return nes.ppu.readVram();
 			else if(address == 0x4014) assert(false); //direct memory access, write only(?)
 			else assert(false);
 		}
-		else if(address >= 0x8000) return mapper.cpuRead(address);
+		else if(address >= 0x8000) return nes.mapper.cpuRead(address);
 		else return memory[address]; //normal memory read
 	}
 	
@@ -87,7 +90,7 @@ class CpuMemory {
 			return zpgWrite(immediate, value);
 		}
 		else if(accessMode == Mode.ACC) {
-			cpu.setA(value);
+			nes.cpu.setA(value);
 		}
 		else if(accessMode == Mode.ZPX) {
 			return zpxWrite(immediate, value);
@@ -123,18 +126,18 @@ class CpuMemory {
 		if(address >= 0x2000 && address < 0x4020) {
 			if(address < 0x4000) address = ((address - 0x2000) % 8) + 0x2000; //mirrors $2008-$4000
 			//ppu
-			if(address == 0x2000) ppu.writeControlRegister(value);
-			else if(address == 0x2001) ppu.writeMaskRegister(value);
+			if(address == 0x2000) nes.ppu.writeControlRegister(value);
+			else if(address == 0x2001) nes.ppu.writeMaskRegister(value);
 			else if(address == 0x2002) assert(false); //ppu status read only
-			else if(address == 0x2003) ppu.writeOamAddress(value);
-			else if(address == 0x2004) ppu.writeOamData(value);
-			else if(address == 0x2005) ppu.writeScroll(value);
-			else if(address == 0x2006) ppu.writeVramAddress(value);
-			else if(address == 0x2007) ppu.writeVram(value);
+			else if(address == 0x2003) nes.ppu.writeOamAddress(value);
+			else if(address == 0x2004) nes.ppu.writeOamData(value);
+			else if(address == 0x2005) nes.ppu.writeScroll(value);
+			else if(address == 0x2006) nes.ppu.writeVramAddress(value);
+			else if(address == 0x2007) nes.ppu.writeVram(value);
 			else if(address == 0x4014) directMemoryAccess(value);
 			else assert(false);
 		}
-		if(address >= 0x8000) mapper.cpuWrite(address, value);
+		if(address >= 0x8000) nes.mapper.cpuWrite(address, value);
 		else memory[address] = value; //normal memory write
 	}
 	
@@ -166,11 +169,11 @@ class CpuMemory {
 	accumulator will be loaded from $008F (e.g. $80 + $0F => $8F).
 	*/
 	public ubyte zpxRead(ubyte address) {
-		return read(address + cpu.getX());
+		return read(address + nes.cpu.getX());
 	}
 	
 	public void zpxWrite(ubyte address, ubyte value) {
-		write(address + cpu.getX(), value);
+		write(address + nes.cpu.getX(), value);
 	}
 	
 	/*
@@ -180,11 +183,11 @@ class CpuMemory {
 	to it. This mode can only be used with the LDX and STX instructions.
 	*/
 	public ubyte zpyRead(ubyte address) {
-		return read(address + cpu.getY());
+		return read(address + nes.cpu.getY());
 	}
 	
 	public void zpyWrite(ubyte address, ubyte value) {
-		write(address + cpu.getY(), value);
+		write(address + nes.cpu.getY(), value);
 	}
 	
 	/*
@@ -206,13 +209,13 @@ class CpuMemory {
 	if X contains $92 then an STA $2000,X instruction will store the accumulator at $2092 (e.g. $2000 + $92).
 	*/
 	public ubyte abxRead(ushort address) {
-		ushort newAddress = cast(ushort) (address + cpu.getX());
+		ushort newAddress = cast(ushort) (address + nes.cpu.getX());
 		if((address & 0xFF0) != (newAddress & 0xFF00)) setPageCrossed(true);
 		return read(newAddress);
 	}
 	
 	public void abxWrite(ushort address, ubyte value) {
-		write(cast(ushort) (address + cpu.getX()), value);
+		write(cast(ushort) (address + nes.cpu.getX()), value);
 	}
 	
 	/*
@@ -221,13 +224,13 @@ class CpuMemory {
 	of the Y register added to the 16 bit address from the instruction.
 	*/
 	public ubyte abyRead(ushort address) {
-		ushort newAddress = cast(ushort) (address + cpu.getY());
+		ushort newAddress = cast(ushort) (address + nes.cpu.getY());
 		if((address & 0xFF0) != (newAddress & 0xFF00)) setPageCrossed(true);
 		return read(newAddress);
 	}
 	
 	public void abyWrite(ushort address, ubyte value) {
-		write(cast(ushort) (address + cpu.getY()), value);
+		write(cast(ushort) (address + nes.cpu.getY()), value);
 	}
 	
 	/*
@@ -253,12 +256,12 @@ class CpuMemory {
 	wrap around) to give the location of the least significant byte of the target address.
 	*/
 	public ubyte inxRead(ubyte address) {
-		ushort realAddress = read16(address + cpu.getX());
+		ushort realAddress = read16(address + nes.cpu.getX());
 		return read(realAddress);
 	}
 	
 	public void inxWrite(ubyte address, ubyte value) {
-		ushort realAddress = read16(address + cpu.getX());
+		ushort realAddress = read16(address + nes.cpu.getX());
 		return write(realAddress, value);
 	}
 	
@@ -270,14 +273,14 @@ class CpuMemory {
 	*/
 	public ubyte inyRead(ubyte address) {
 		ushort addressAddress = read16(address);
-		ushort realAddress = cast(ushort) (addressAddress + cpu.getY());
+		ushort realAddress = cast(ushort) (addressAddress + nes.cpu.getY());
 		if((addressAddress & 0xFF0) != (realAddress & 0xFF00)) setPageCrossed(true);
 		return read(realAddress);
 	}
 	
 	public void inyWrite(ubyte address, ubyte value) {
 		ushort realAddress = read16(address);
-		return write(realAddress + cpu.getY(), value);
+		return write(realAddress + nes.cpu.getY(), value);
 	}
 	
 	public bool getPageCrossed() {
@@ -305,6 +308,6 @@ class CpuMemory {
 			ubyte value = read(realAddress + i);
 			write(0x2004, value);
 		}
-		cpu.stall(513 + (cpu.getCycles() % 2));
+		nes.cpu.stall(513 + (nes.cpu.getCycles() % 2));
 	}
 }

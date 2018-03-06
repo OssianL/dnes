@@ -66,6 +66,10 @@ class Rom {
 		return TvSystem.NTSC; //TODO
 	}
 	
+	public ubyte getMapperNumber() {
+		return mapperNumber;
+	}
+	
 	private bool headerIsValid(ubyte[] header) {
 		if(header[0] != 0x4E || header[1] != 0x45 || header[2] != 0x53 || header[3] != 0x1A) return false;
 		if(header[5] == 0) return false;
@@ -81,7 +85,7 @@ class Rom {
 		else assert(false);
 	}
 	
-	public void setMapperNumber(ubyte header6, ubyte header7) {
+	private void setMapperNumber(ubyte header6, ubyte header7) {
 		mapperNumber = (header6 & 0xF0) >> 8;
 		mapperNumber += header7 & 0xF0;
 	}

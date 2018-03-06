@@ -1,5 +1,12 @@
+import nes;
 
 class Apu {
+	
+	private Nes nes;
+	
+	this(Nes nes) {
+		this.nes = nes;
+	}
 	
 	public void powerUp() {
 		/*
