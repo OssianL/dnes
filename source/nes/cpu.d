@@ -136,8 +136,22 @@ class Cpu {
 		];
 	}
 	
+	public void powerUp() {
+		p = 0x36;
+		a = 0;
+		x = 0;
+		y = 0;
+		sp = 0xfd;
+		raiseInterruption(Interruption.RESET);
+	}
+	
+	public void reset() {
+		sp -= 3;
+		p |= interruptsDisabledFlagMask;
+	}
+	
 	public void cycle() {
-		
+		executeInstruction(memory.read32(pc);
 	}
 	
 	public void executeInstruction(uint instruction) {
@@ -150,7 +164,7 @@ class Cpu {
 		if(interruption != Interruption.NONE) jumpToInterruptionHandler();
 		else {
 			executeOpcode(operation, mode, immediate, address);
-			addPC(getInstructionSize(operation, mode));
+			addPC(getInstructionSize(mode));
 			addCycles(getCycleCost(opcode) + memory.getPageCrossedValue());
 			memory.clearPageCrossed();
 		}
@@ -950,6 +964,7 @@ class Cpu {
 			setPC(memory.read16(nmiAddress));
 		}
 		else if(interruption == Interruption.RESET) {
+			reset();
 			setPC(memory.read16(resetAddress));
 		}
 		setInterruptsDisabledFlag(true);
@@ -963,7 +978,7 @@ class Cpu {
 		setPC(newPC);
 	}
 	
-	private int getInstructionSize(Op operation, Mode mode) {
+	private int getInstructionSize(Mode mode) {
 		if(mode == Mode.ABS) return 3;
 		else if(mode == Mode.ABX) return 3;
 		else if(mode == Mode.ABY) return 3;

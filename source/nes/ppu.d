@@ -32,7 +32,10 @@ class Ppu {
 	
 	enum cyclesPerScanline = 341;
 	enum scanlinesPerFrame = 262;
+	enum visibleStartScanline = 0;
+	enum postRenderScanline = 240
 	enum vBlankStartScanline = 241;
+	enum preRenderScanline = 261;
 	
 	private ubyte[0x3FFF] ppuRam;
 	private ubyte[256] oamRam;
