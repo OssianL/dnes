@@ -4,6 +4,7 @@ import apu;
 import cpuMemory;
 import rom;
 import mapper;
+import std.stdio;
 
 enum TvSystem {
 	NTSC,
@@ -29,6 +30,7 @@ class Nes {
 	public void loadRom(Rom rom) {
 		_rom = rom;
 		_mapper = Mapper.createMapper(this, rom);
+		writeln("rom loaded! mapperNumber: ", _rom.getMapperNumber());
 	}
 	
 	public void powerUp() {
@@ -44,11 +46,12 @@ class Nes {
 	}
 	
 	public void run() {
-		
-	}
-	
-	private void masterCycle() {
-		
+		while(true) {
+			_cpu.step();
+			_ppu.step();
+			_ppu.step();
+			_ppu.step();
+		}
 	}
 	
 	public @property Cpu cpu() {return _cpu;}

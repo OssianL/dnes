@@ -1,4 +1,5 @@
 import cpuMemory;
+import std.stdio;
 
 enum Op {
 	ADC, AND, ASL, BCC, BCS, BEQ, BIT, BMI, BNE, BPL,
@@ -161,6 +162,8 @@ class Cpu {
 		ushort address = cast(ushort) (instruction >> 8); //second and third byte, usually address
 		Op operation = opcodeOperation[opcode];
 		Mode mode = opcodeAddressingMode[opcode];
+		
+		writeln("cpu cycle: ", cycles, " opcode: ", opcode, " immediate: ", immediate, " address: ", address);
 		
 		if(interruption != Interruption.NONE) jumpToInterruptionHandler();
 		else {

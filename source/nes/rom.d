@@ -1,4 +1,5 @@
 import std.file;
+import std.stdio;
 import ppu;
 
 enum prgBankSize = 16384;
@@ -24,6 +25,10 @@ class Rom {
 	private ChrBank[] _chrBanks;
 	private ubyte[] instRom;
 	private ubyte[] pRom;
+	
+	this(string fileName) {
+		if(!load(fileName)) writeln("rom load failed");
+	}
 	
 	public bool load(string fileName) {
 		ubyte[] file = cast(ubyte[]) read(fileName, 10000000);
