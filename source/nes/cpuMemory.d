@@ -78,6 +78,10 @@ class CpuMemory {
 		return value;
 	}
 	
+	public uint read32(int address) {
+		return (read16(address) << 16) | (read16(address + 2));
+	}
+	
 	public void write(Mode accessMode, ubyte immediate, ushort address, ubyte value) {
 		if(accessMode == Mode.ZPG) {
 			return zpgWrite(immediate, value);

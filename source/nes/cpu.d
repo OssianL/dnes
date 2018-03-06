@@ -150,8 +150,8 @@ class Cpu {
 		p |= interruptsDisabledFlagMask;
 	}
 	
-	public void cycle() {
-		executeInstruction(memory.read32(pc);
+	public void step() {
+		executeInstruction(memory.read32(pc));
 	}
 	
 	public void executeInstruction(uint instruction) {

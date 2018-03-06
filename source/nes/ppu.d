@@ -33,7 +33,7 @@ class Ppu {
 	enum cyclesPerScanline = 341;
 	enum scanlinesPerFrame = 262;
 	enum visibleStartScanline = 0;
-	enum postRenderScanline = 240
+	enum postRenderScanline = 240;
 	enum vBlankStartScanline = 241;
 	enum preRenderScanline = 261;
 	
@@ -77,11 +77,9 @@ class Ppu {
 	private bool writeToggle; //false if waiting for first byte, used for both $2005 and $2006
 	private ubyte vramDataBuffer; //
 	
-	private uint cycles = 0;
+	private uint cycle = 0;
 	private int scanline;
 	private uint frame;
-	private bool evenFrame;
-	
 	
 	this() {
 	
@@ -102,6 +100,9 @@ class Ppu {
 		vramAddress = 0;
 		//oddFrame no ???
 		//TODO: oamRam = pattern ??? what pattern
+		cycle = 0;
+		scanline = preRenderScanline;
+		frame = 0;
 	}
 	
 	public void reset() {
@@ -114,16 +115,36 @@ class Ppu {
 		scrollY = 0;
 		//oddFrame no ???
 		//TODO: oamRam = pattern ??? what pattern
+		cycle = 0;
+		scanline = preRenderScanline;
+		frame = 0;
 	}
 	
-	public void cycle() {
-		//TODO: event/odd frames cycle skip
-		//if vblank && generateNmi -> cpu.raiseInterruption(interruption.NMI);
-		if(cycles == 341 * 241) {
-			//vBlank
-			cpu.raiseInterruption(interruprion.NMI);
+	public void step() {
+		if(scanline >= 0 && scanline < postRenderScanline) {
+			
+		}
+		else if(scanline == postRenderScanline) {
+			
+		}
+		else if(scanline == cyclesPerScanline && cycle == 0) {
+			//vBlank start
+			if(generateNmi) cpu.raiseInterruption(Interruption.NMI);
+		}
+		else if(scanline == preRenderScanline) {
+		
 		}
 		bool renderingEnabled = showBackground || showSprites;
+		cycle++;
+		if(cycle >= cyclesPerScanline) {
+			cycle = 0;
+			scanline++;
+			if(scanline > 261) {
+				scanline = 0;
+				frame++;
+			}	
+		}
+		//TODO: event/odd frames cycle skip
 		
 	}
 	
