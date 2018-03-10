@@ -46,7 +46,7 @@ class Nes {
 	}
 	
 	public void run() {
-		while(true) {
+		for(int i = 0; i < 8991; i++) {
 			_cpu.step();
 			_ppu.step();
 			_ppu.step();

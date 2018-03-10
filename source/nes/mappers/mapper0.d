@@ -45,7 +45,7 @@ class Mapper0 : Mapper {
 	
 	public ubyte cpuRead(ushort address) {
 		if(address < 0x8000) assert(false);
-		if(address >= 0xc000) return rom.prgBanks[$][address - 0xc0000];//last bank or first
+		if(address >= 0xc000) return rom.prgBanks[$-1][address - 0xc000];//last bank or first
 		return rom.prgBanks[0][address - 0x8000];
 	}
 	

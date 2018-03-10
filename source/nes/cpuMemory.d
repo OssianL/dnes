@@ -2,6 +2,8 @@ import cpu;
 import ppu;
 import mapper;
 import nes;
+import std.stdio;
+import std.conv;
 
 class CpuMemory {
 	private ubyte[65536] memory;
@@ -9,7 +11,7 @@ class CpuMemory {
 	private bool pageCrossed = false;
 	
 	this(Nes nes) {
-		
+		this.nes = nes;
 	}
 	
 	public ubyte read(Mode accessMode, ubyte immediate, ushort address) {
@@ -38,7 +40,7 @@ class CpuMemory {
 			return abyRead(address);
 		}
 		else if(accessMode == Mode.IND) {
-			return indRead(address);
+			assert(false, "cpuMemory: no indirect read implemented");
 		}
 		else if(accessMode == Mode.INX) {
 			return inxRead(immediate);
@@ -47,7 +49,7 @@ class CpuMemory {
 			return inyRead(immediate);
 		}
 		else {
-			assert(false, "memory read mode not implemented");
+			assert(false, "memory read mode: " ~ to!string(accessMode) ~ " not implemented");
 		}
 	}
 	
@@ -76,13 +78,9 @@ class CpuMemory {
 	}
 	
 	public ushort read16(int address) {
-		ushort value = read(address);//least significant byte first
-		value += cast(ushort) (read(address + 1) << 8);
+		ushort value = read(address);//least significant byte first (little endian)
+		value += (cast(ushort) (read(address + 1)) << 8);
 		return value;
-	}
-	
-	public uint read32(int address) {
-		return (read16(address) << 16) | (read16(address + 2));
 	}
 	
 	public void write(Mode accessMode, ubyte immediate, ushort address, ubyte value) {
@@ -108,7 +106,7 @@ class CpuMemory {
 			return abyWrite(address, value);
 		}
 		else if(accessMode == Mode.IND) {
-			return indWrite(address, value);
+			assert(false, "cpuMemory: no indirect write implemented");
 		}
 		else if(accessMode == Mode.INX) {
 			return inxWrite(immediate, value);
@@ -169,11 +167,11 @@ class CpuMemory {
 	accumulator will be loaded from $008F (e.g. $80 + $0F => $8F).
 	*/
 	public ubyte zpxRead(ubyte address) {
-		return read(address + nes.cpu.getX());
+		return read(cast(ubyte) (address + nes.cpu.getX()));
 	}
 	
 	public void zpxWrite(ubyte address, ubyte value) {
-		write(address + nes.cpu.getX(), value);
+		write(cast(ubyte) (address + nes.cpu.getX()), value);
 	}
 	
 	/*
@@ -183,11 +181,11 @@ class CpuMemory {
 	to it. This mode can only be used with the LDX and STX instructions.
 	*/
 	public ubyte zpyRead(ubyte address) {
-		return read(address + nes.cpu.getY());
+		return read(cast(ubyte) (address + nes.cpu.getY()));
 	}
 	
 	public void zpyWrite(ubyte address, ubyte value) {
-		write(address + nes.cpu.getY(), value);
+		write(cast(ubyte) (address + nes.cpu.getY()), value);
 	}
 	
 	/*
@@ -234,34 +232,23 @@ class CpuMemory {
 	}
 	
 	/*
-	Indirect
-	JMP is the only 6502 instruction to support indirection. The instruction contains a 16 bit address
-	which identifies the location of the least significant byte of another 16 bit memory address which
-	is the real target of the instruction.
-	*/
-	public ubyte indRead(ushort address) {
-		ushort realAddress = read16(address);
-		return read(realAddress);
-	}
-	
-	public void indWrite(ushort address, ubyte value) {
-		ushort realAddress = read16(address);
-		write(realAddress, value);
-	}
-	
-	/*
 	Indexed Indirect
 	Indexed indirect addressing is normally used in conjunction with a table of address held on zero page.
 	The address of the table is taken from the instruction and the X register added to it (with zero page
 	wrap around) to give the location of the least significant byte of the target address.
 	*/
 	public ubyte inxRead(ubyte address) {
-		ushort realAddress = read16(address + nes.cpu.getX());
+		address = cast(ubyte) (address + nes.cpu.getX());
+		ushort realAddress = read(address);
+		realAddress |= (cast(ushort) read(cast(ubyte) (address + 1))) << 8;
+		//if(nes.cpu.instructions == 6352) writefln("inxRead  newAddress: %x realAddress: %x value: %x", address, realAddress, read(realAddress));
 		return read(realAddress);
 	}
 	
 	public void inxWrite(ubyte address, ubyte value) {
-		ushort realAddress = read16(address + nes.cpu.getX());
+		address = cast(ubyte) (address + nes.cpu.getX());
+		ushort realAddress = read(address);
+		realAddress |= (cast(ushort) read(cast(ubyte) (address + 1))) << 8;
 		return write(realAddress, value);
 	}
 	
@@ -272,9 +259,10 @@ class CpuMemory {
 	dynamically added to this value to generated the actual target address for operation.
 	*/
 	public ubyte inyRead(ubyte address) {
-		ushort addressAddress = read16(address);
+		ushort addressAddress = read(address);
+		addressAddress |= (cast(ushort) read(cast(ubyte) (address + 1))) << 8;
 		ushort realAddress = cast(ushort) (addressAddress + nes.cpu.getY());
-		if((addressAddress & 0xFF0) != (realAddress & 0xFF00)) setPageCrossed(true);
+		if((addressAddress & 0xFF00) != (realAddress & 0xFF00)) setPageCrossed(true);
 		return read(realAddress);
 	}
 	

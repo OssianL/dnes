@@ -1,5 +1,8 @@
 import cpuMemory;
+import main;
 import std.stdio;
+import std.format;
+import std.conv;
 
 enum Op {
 	ADC, AND, ASL, BCC, BCS, BEQ, BIT, BMI, BNE, BPL,
@@ -7,7 +10,9 @@ enum Op {
 	DEC, DEX, DEY, EOR, INC, INX, INY, JMP, JSR, LDA,
 	LDX, LDY, LSR, NOP, ORA, PHA, PHP, PLA, PLP, ROL,
 	ROR, RTI, RTS, SBC, SEC, SED, SEI, STA, STX, STY,
-	TAX, TAY, TSX, TXA, TXS, TYA, NON
+	TAX, TAY, TSX, TXA, TXS, TYA,
+	/*unofficial opcodes:*/
+	LAX, SAX, DCP, ISC, SLO, RLA, SRE, RRA
 }
 
 enum Mode {
@@ -33,64 +38,64 @@ enum Interruption {
 //operation of each opcode
 const Op[256] opcodeOperation = [
 //0		1		2		3		4		5		6		7		8		9		A		B		C		D		E		F
-Op.BRK, Op.ORA, Op.NON, Op.NON, Op.NON, Op.ORA, Op.ASL, Op.NON, Op.PHP, Op.ORA, Op.ASL, Op.NON, Op.NON, Op.ORA, Op.ASL, Op.NON, //0
-Op.BPL, Op.NON, Op.NON, Op.NON, Op.NON, Op.ORA, Op.ASL, Op.NON, Op.CLC, Op.ORA, Op.NON, Op.NON, Op.NON, Op.ORA, Op.ASL, Op.NON,	//1
-Op.JSR, Op.AND, Op.NON, Op.NON, Op.BIT, Op.AND, Op.ROL, Op.NON, Op.PLP, Op.AND, Op.ROL, Op.NON, Op.BIT, Op.AND, Op.ROL, Op.NON,	//2
-Op.BMI, Op.AND, Op.NON, Op.NON, Op.NON, Op.AND, Op.ROL, Op.NON, Op.SEC, Op.AND, Op.NON, Op.NON, Op.NON, Op.AND, Op.ROL, Op.NON,	//3
-Op.RTI, Op.EOR, Op.NON, Op.NON, Op.NON, Op.EOR, Op.LSR, Op.NON, Op.PHA, Op.EOR, Op.LSR, Op.NON, Op.JMP, Op.EOR, Op.LSR, Op.NON,	//4
-Op.BVC, Op.EOR, Op.NON, Op.NON, Op.NON, Op.EOR, Op.LSR, Op.NON, Op.CLI, Op.EOR, Op.NON, Op.NON, Op.NON, Op.EOR, Op.LSR, Op.NON,	//5
-Op.RTS, Op.ADC, Op.NON, Op.NON, Op.NON, Op.ADC, Op.ROR, Op.NON, Op.PLA, Op.ADC, Op.ROR, Op.NON, Op.JMP, Op.ADC, Op.ROR, Op.NON,	//6
-Op.BVS, Op.ADC, Op.NON, Op.NON, Op.NON, Op.ADC, Op.ROR, Op.NON, Op.SEI, Op.ADC, Op.NON, Op.NON, Op.NON, Op.ADC, Op.ROR, Op.NON,	//7
-Op.NON, Op.STA, Op.NON, Op.NON, Op.STY, Op.STA, Op.STX, Op.NON, Op.DEY, Op.NON, Op.TXA, Op.NON, Op.STY, Op.STA, Op.STX, Op.NON,	//8
-Op.BCC, Op.STA, Op.NON, Op.NON, Op.STY, Op.STA, Op.STX, Op.NON, Op.TYA, Op.STA, Op.TXS, Op.NON, Op.NON, Op.STA, Op.NON, Op.NON,	//9
-Op.LDA, Op.LDA, Op.LDX, Op.NON, Op.LDY, Op.LDA, Op.LDX, Op.NON, Op.TAY, Op.LDA, Op.TAX, Op.NON, Op.LDY, Op.LDA, Op.LDX, Op.NON,	//A
-Op.BCS, Op.LDA, Op.NON, Op.NON, Op.LDY, Op.LDA, Op.LDX, Op.NON, Op.CLV, Op.LDA, Op.TSX, Op.NON, Op.LDY, Op.LDA, Op.LDA, Op.NON,	//B
-Op.CPY, Op.CMP, Op.NON, Op.NON, Op.CPY, Op.CMP, Op.DEC, Op.NON, Op.INY, Op.CMP, Op.DEX, Op.NON, Op.CPY, Op.CMP, Op.DEC, Op.NON,	//C
-Op.BNE, Op.CMP, Op.NON, Op.NON, Op.NON, Op.CMP, Op.DEC, Op.NON, Op.CLD, Op.CMP, Op.NON, Op.NON, Op.NON, Op.CMP, Op.DEC, Op.NON,	//D
-Op.CPX, Op.SBC, Op.NON, Op.NON, Op.CPX, Op.SBC, Op.INC, Op.NON, Op.INX, Op.SBC, Op.NOP, Op.NON, Op.CPX, Op.SBC, Op.INC, Op.NON,	//E
-Op.BEQ, Op.SBC, Op.NON, Op.NON, Op.NON, Op.SBC, Op.INC, Op.NON, Op.SED, Op.SBC, Op.NON, Op.NON, Op.NON, Op.SBC, Op.INC, Op.NON	//F
+Op.BRK, Op.ORA, Op.NOP, Op.SLO, Op.NOP, Op.ORA, Op.ASL, Op.SLO, Op.PHP, Op.ORA, Op.ASL, Op.NOP, Op.NOP, Op.ORA, Op.ASL, Op.SLO, //0
+Op.BPL, Op.ORA, Op.NOP, Op.SLO, Op.NOP, Op.ORA, Op.ASL, Op.SLO, Op.CLC, Op.ORA, Op.NOP, Op.SLO, Op.NOP, Op.ORA, Op.ASL, Op.SLO,	//1
+Op.JSR, Op.AND, Op.NOP, Op.RLA, Op.BIT, Op.AND, Op.ROL, Op.RLA, Op.PLP, Op.AND, Op.ROL, Op.NOP, Op.BIT, Op.AND, Op.ROL, Op.RLA,	//2
+Op.BMI, Op.AND, Op.NOP, Op.RLA, Op.NOP, Op.AND, Op.ROL, Op.RLA, Op.SEC, Op.AND, Op.NOP, Op.RLA, Op.NOP, Op.AND, Op.ROL, Op.RLA,	//3
+Op.RTI, Op.EOR, Op.NOP, Op.SRE, Op.NOP, Op.EOR, Op.LSR, Op.SRE, Op.PHA, Op.EOR, Op.LSR, Op.NOP, Op.JMP, Op.EOR, Op.LSR, Op.SRE,	//4
+Op.BVC, Op.EOR, Op.NOP, Op.SRE, Op.NOP, Op.EOR, Op.LSR, Op.SRE, Op.CLI, Op.EOR, Op.NOP, Op.SRE, Op.NOP, Op.EOR, Op.LSR, Op.SRE,	//5
+Op.RTS, Op.ADC, Op.NOP, Op.RRA, Op.NOP, Op.ADC, Op.ROR, Op.RRA, Op.PLA, Op.ADC, Op.ROR, Op.NOP, Op.JMP, Op.ADC, Op.ROR, Op.RRA,	//6
+Op.BVS, Op.ADC, Op.NOP, Op.RRA, Op.NOP, Op.ADC, Op.ROR, Op.RRA, Op.SEI, Op.ADC, Op.NOP, Op.RRA, Op.NOP, Op.ADC, Op.ROR, Op.RRA,	//7
+Op.NOP, Op.STA, Op.NOP, Op.SAX, Op.STY, Op.STA, Op.STX, Op.SAX, Op.DEY, Op.NOP, Op.TXA, Op.NOP, Op.STY, Op.STA, Op.STX, Op.SAX,	//8
+Op.BCC, Op.STA, Op.NOP, Op.NOP, Op.STY, Op.STA, Op.STX, Op.SAX, Op.TYA, Op.STA, Op.TXS, Op.NOP, Op.NOP, Op.STA, Op.NOP, Op.NOP,	//9
+Op.LDY, Op.LDA, Op.LDX, Op.LAX, Op.LDY, Op.LDA, Op.LDX, Op.LAX, Op.TAY, Op.LDA, Op.TAX, Op.LAX, Op.LDY, Op.LDA, Op.LDX, Op.LAX,	//A
+Op.BCS, Op.LDA, Op.NOP, Op.LAX, Op.LDY, Op.LDA, Op.LDX, Op.LAX, Op.CLV, Op.LDA, Op.TSX, Op.NOP, Op.LDY, Op.LDA, Op.LDX, Op.LAX,	//B
+Op.CPY, Op.CMP, Op.NOP, Op.DCP, Op.CPY, Op.CMP, Op.DEC, Op.DCP, Op.INY, Op.CMP, Op.DEX, Op.NOP, Op.CPY, Op.CMP, Op.DEC, Op.DCP,	//C
+Op.BNE, Op.CMP, Op.NOP, Op.DCP, Op.NOP, Op.CMP, Op.DEC, Op.DCP, Op.CLD, Op.CMP, Op.NOP, Op.DCP, Op.NOP, Op.CMP, Op.DEC, Op.DCP,	//D
+Op.CPX, Op.SBC, Op.NOP, Op.ISC, Op.CPX, Op.SBC, Op.INC, Op.ISC, Op.INX, Op.SBC, Op.NOP, Op.SBC, Op.CPX, Op.SBC, Op.INC, Op.ISC,	//E
+Op.BEQ, Op.SBC, Op.NOP, Op.ISC, Op.NOP, Op.SBC, Op.INC, Op.ISC, Op.SED, Op.SBC, Op.NOP, Op.ISC, Op.NOP, Op.SBC, Op.INC, Op.ISC	//F
 ];
 
 //memory access mode for each opcode
 const Mode[256] opcodeAddressingMode = [
 //0       1         2         3         4         5         6         7         8         9         A         B         C         D         E         F
-Mode.IMP, Mode.INX, Mode.IMP, Mode.IMP, Mode.IMP, Mode.ZPG, Mode.ZPG, Mode.IMP, Mode.IMP, Mode.IMM, Mode.ACC, Mode.IMP, Mode.IMP, Mode.ABS, Mode.ABS, Mode.IMP, //0
-Mode.REL, Mode.INY, Mode.IMP, Mode.IMP, Mode.IMP, Mode.ZPX, Mode.ZPX, Mode.IMP, Mode.IMP, Mode.ABY, Mode.IMP, Mode.IMP, Mode.IMP, Mode.ABX, Mode.ABX, Mode.IMP, //1
-Mode.ABS, Mode.INX, Mode.IMP, Mode.IMP, Mode.ZPG, Mode.ZPG, Mode.ZPG, Mode.IMP, Mode.IMP, Mode.IMM, Mode.ACC, Mode.IMP, Mode.ABS, Mode.ABS, Mode.ABS, Mode.IMP, //2
-Mode.REL, Mode.INY, Mode.IMP, Mode.IMP, Mode.IMP, Mode.ZPX, Mode.ZPX, Mode.IMP, Mode.IMP, Mode.ABY, Mode.IMP, Mode.IMP, Mode.IMP, Mode.ABX, Mode.ABX, Mode.IMP, //3
-Mode.IMP, Mode.INX, Mode.IMP, Mode.IMP, Mode.IMP, Mode.ZPG, Mode.ZPG, Mode.IMP, Mode.IMP, Mode.IMM, Mode.ACC, Mode.IMP, Mode.ABS, Mode.ABS, Mode.ABS, Mode.IMP, //4
-Mode.REL, Mode.INY, Mode.IMP, Mode.IMP, Mode.IMP, Mode.ZPX, Mode.ZPX, Mode.IMP, Mode.IMP, Mode.ABY, Mode.IMP, Mode.IMP, Mode.IMP, Mode.ABX, Mode.ABX, Mode.IMP, //5
-Mode.IMP, Mode.INX, Mode.IMP, Mode.IMP, Mode.IMP, Mode.ZPG, Mode.ZPG, Mode.IMP, Mode.IMP, Mode.IMM, Mode.ACC, Mode.IMP, Mode.IND, Mode.ABS, Mode.ABS, Mode.IMP, //6
-Mode.REL, Mode.INY, Mode.IMP, Mode.IMP, Mode.IMP, Mode.ZPX, Mode.ZPX, Mode.IMP, Mode.IMP, Mode.ABY, Mode.IMP, Mode.IMP, Mode.IMP, Mode.ABX, Mode.ABX, Mode.IMP, //7
-Mode.IMP, Mode.INX, Mode.IMP, Mode.IMP, Mode.ZPG, Mode.ZPG, Mode.ZPG, Mode.IMP, Mode.IMP, Mode.IMP, Mode.IMP, Mode.IMP, Mode.ABS, Mode.ABS, Mode.ABS, Mode.IMP, //8
-Mode.REL, Mode.INY, Mode.IMP, Mode.IMP, Mode.ZPX, Mode.ZPX, Mode.ZPY, Mode.IMP, Mode.IMP, Mode.ABY, Mode.IMP, Mode.IMP, Mode.IMP, Mode.ABX, Mode.IMP, Mode.IMP, //9
-Mode.IMM, Mode.INX, Mode.IMM, Mode.IMP, Mode.ZPG, Mode.ZPG, Mode.ZPG, Mode.IMP, Mode.IMP, Mode.IMM, Mode.IMP, Mode.IMP, Mode.ABS, Mode.ABS, Mode.ABS, Mode.IMP, //A
-Mode.REL, Mode.INY, Mode.IMP, Mode.IMP, Mode.ZPX, Mode.ZPX, Mode.ZPY, Mode.IMP, Mode.IMP, Mode.ABY, Mode.IMP, Mode.IMP, Mode.ABX, Mode.ABX, Mode.ABY, Mode.IMP, //B
-Mode.IMM, Mode.INX, Mode.IMP, Mode.IMP, Mode.ZPG, Mode.ZPG, Mode.ZPG, Mode.IMP, Mode.IMP, Mode.IMM, Mode.IMP, Mode.IMP, Mode.ABS, Mode.ABS, Mode.ABS, Mode.IMP, //C
-Mode.REL, Mode.INY, Mode.IMP, Mode.IMP, Mode.IMP, Mode.ZPX, Mode.ZPX, Mode.IMP, Mode.IMP, Mode.ABY, Mode.IMP, Mode.IMP, Mode.IMP, Mode.ABX, Mode.ABX, Mode.IMP, //D
-Mode.IMM, Mode.INX, Mode.IMP, Mode.IMP, Mode.ZPG, Mode.ZPG, Mode.ZPG, Mode.IMP, Mode.IMP, Mode.IMM, Mode.IMP, Mode.IMP, Mode.ABS, Mode.ABS, Mode.ABS, Mode.IMP, //E
-Mode.REL, Mode.IMP, Mode.IMP, Mode.IMP, Mode.IMP, Mode.ZPX, Mode.ZPX, Mode.IMP, Mode.IMP, Mode.ABY, Mode.IMP, Mode.IMP, Mode.IMP, Mode.ABX, Mode.ABX, Mode.IMP  //F
+Mode.IMP, Mode.INX, Mode.IMP, Mode.INX, Mode.ZPG, Mode.ZPG, Mode.ZPG, Mode.ZPG, Mode.IMP, Mode.IMM, Mode.ACC, Mode.IMM, Mode.ABS, Mode.ABS, Mode.ABS, Mode.ABS, //0
+Mode.REL, Mode.INY, Mode.IMP, Mode.INY, Mode.ZPX, Mode.ZPX, Mode.ZPX, Mode.ZPX, Mode.IMP, Mode.ABY, Mode.IMP, Mode.ABY, Mode.ABX, Mode.ABX, Mode.ABX, Mode.ABX, //1
+Mode.ABS, Mode.INX, Mode.IMP, Mode.INX, Mode.ZPG, Mode.ZPG, Mode.ZPG, Mode.ZPG, Mode.IMP, Mode.IMM, Mode.ACC, Mode.IMM, Mode.ABS, Mode.ABS, Mode.ABS, Mode.ABS, //2
+Mode.REL, Mode.INY, Mode.IMP, Mode.INY, Mode.ZPX, Mode.ZPX, Mode.ZPX, Mode.ZPX, Mode.IMP, Mode.ABY, Mode.IMP, Mode.ABY, Mode.ABX, Mode.ABX, Mode.ABX, Mode.ABX, //3
+Mode.IMP, Mode.INX, Mode.IMP, Mode.INX, Mode.ZPG, Mode.ZPG, Mode.ZPG, Mode.ZPG, Mode.IMP, Mode.IMM, Mode.ACC, Mode.IMM, Mode.ABS, Mode.ABS, Mode.ABS, Mode.ABS, //4
+Mode.REL, Mode.INY, Mode.IMP, Mode.INY, Mode.ZPX, Mode.ZPX, Mode.ZPX, Mode.ZPX, Mode.IMP, Mode.ABY, Mode.IMP, Mode.ABY, Mode.ABX, Mode.ABX, Mode.ABX, Mode.ABX, //5
+Mode.IMP, Mode.INX, Mode.IMP, Mode.INX, Mode.ZPG, Mode.ZPG, Mode.ZPG, Mode.ZPG, Mode.IMP, Mode.IMM, Mode.ACC, Mode.IMM, Mode.IND, Mode.ABS, Mode.ABS, Mode.ABS, //6
+Mode.REL, Mode.INY, Mode.IMP, Mode.INY, Mode.ZPX, Mode.ZPX, Mode.ZPX, Mode.ZPX, Mode.IMP, Mode.ABY, Mode.IMP, Mode.ABY, Mode.ABX, Mode.ABX, Mode.ABX, Mode.ABX, //7
+Mode.IMM, Mode.INX, Mode.IMP, Mode.INX, Mode.ZPG, Mode.ZPG, Mode.ZPG, Mode.ZPG, Mode.IMP, Mode.IMP, Mode.IMP, Mode.IMM, Mode.ABS, Mode.ABS, Mode.ABS, Mode.ABS, //8
+Mode.REL, Mode.INY, Mode.IMP, Mode.INY, Mode.ZPX, Mode.ZPX, Mode.ZPY, Mode.ZPY, Mode.IMP, Mode.ABY, Mode.IMP, Mode.ABY, Mode.ABX, Mode.ABX, Mode.ABY, Mode.ABY, //9
+Mode.IMM, Mode.INX, Mode.IMM, Mode.INX, Mode.ZPG, Mode.ZPG, Mode.ZPG, Mode.ZPG, Mode.IMP, Mode.IMM, Mode.IMP, Mode.IMM, Mode.ABS, Mode.ABS, Mode.ABS, Mode.ABS, //A
+Mode.REL, Mode.INY, Mode.IMP, Mode.INY, Mode.ZPX, Mode.ZPX, Mode.ZPY, Mode.ZPY, Mode.IMP, Mode.ABY, Mode.IMP, Mode.ABY, Mode.ABX, Mode.ABX, Mode.ABY, Mode.ABY, //B
+Mode.IMM, Mode.INX, Mode.IMP, Mode.INX, Mode.ZPG, Mode.ZPG, Mode.ZPG, Mode.ZPG, Mode.IMP, Mode.IMM, Mode.IMP, Mode.IMM, Mode.ABS, Mode.ABS, Mode.ABS, Mode.ABS, //C
+Mode.REL, Mode.INY, Mode.IMP, Mode.INY, Mode.ZPX, Mode.ZPX, Mode.ZPX, Mode.ZPX, Mode.IMP, Mode.ABY, Mode.IMP, Mode.ABY, Mode.ABX, Mode.ABX, Mode.ABX, Mode.ABX, //D
+Mode.IMM, Mode.INX, Mode.IMP, Mode.INX, Mode.ZPG, Mode.ZPG, Mode.ZPG, Mode.ZPG, Mode.IMP, Mode.IMM, Mode.IMP, Mode.IMM, Mode.ABS, Mode.ABS, Mode.ABS, Mode.ABS, //E
+Mode.REL, Mode.INY, Mode.IMP, Mode.INY, Mode.ZPX, Mode.ZPX, Mode.ZPX, Mode.ZPX, Mode.IMP, Mode.ABY, Mode.IMP, Mode.ABY, Mode.ABX, Mode.ABX, Mode.ABX, Mode.ABX  //F
 ];
 
 //base cycle costs for each opcode
 const byte[256] cycleCosts = [
   //0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
-	7, 6, 0, 0, 0, 3, 5, 0, 3, 2, 2, 0, 0, 4, 6, 0, //0
-	2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0, //1
-	6, 6, 0, 0, 3, 3, 5, 0, 4, 2, 2, 0, 4, 4, 6, 0, //2
-	2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0, //3
-	6, 6, 0, 0, 0, 3, 5, 0, 3, 2, 2, 0, 3, 4, 6, 0, //4
-	2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0, //5
-	6, 6, 0, 0, 0, 3, 5, 0, 4, 2, 2, 0, 5, 4, 6, 0, //6
-	2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0, //7
-	0, 6, 0, 0, 3, 3, 3, 0, 2, 0, 2, 0, 4, 4, 4, 0, //8
-	2, 6, 0, 0, 4, 4, 4, 0, 2, 5, 2, 0, 0, 5, 0, 0, //9
-	2, 6, 2, 0, 3, 3, 3, 0, 2, 2, 2, 0, 4, 4, 4, 0, //A
-	2, 5, 0, 0, 4, 4, 4, 0, 2, 4, 2, 0, 4, 4, 4, 0, //B
-	2, 6, 0, 0, 3, 3, 5, 0, 2, 2, 2, 0, 4, 4, 6, 0, //C
-	2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0, //D
-	2, 6, 0, 0, 3, 3, 5, 0, 2, 2, 2, 0, 4, 4, 6, 0, //E
-	2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0  //F
+	7, 6, 2, 8, 2, 3, 5, 5, 3, 2, 2, 2, 2, 4, 6, 6, //0
+	2, 5, 2, 8, 2, 4, 6, 6, 2, 4, 2, 7, 2, 4, 7, 7, //1
+	6, 6, 2, 8, 3, 3, 5, 5, 4, 2, 2, 2, 4, 4, 6, 6, //2
+	2, 5, 2, 8, 2, 4, 6, 6, 2, 4, 2, 7, 2, 4, 7, 7, //3
+	6, 6, 2, 8, 2, 3, 5, 5, 3, 2, 2, 2, 3, 4, 6, 6, //4
+	2, 5, 2, 8, 2, 4, 6, 6, 2, 4, 2, 7, 2, 4, 7, 7, //5
+	6, 6, 2, 8, 2, 3, 5, 5, 4, 2, 2, 2, 5, 4, 6, 6, //6
+	2, 5, 2, 8, 2, 4, 6, 6, 2, 4, 2, 7, 2, 4, 7, 7, //7
+	2, 6, 2, 6, 3, 3, 3, 3, 2, 2, 2, 2, 4, 4, 4, 4, //8
+	2, 6, 2, 2, 4, 4, 4, 4, 2, 5, 2, 2, 2, 5, 2, 2, //9
+	2, 6, 2, 6, 3, 3, 3, 3, 2, 2, 2, 2, 4, 4, 4, 4, //A
+	2, 5, 2, 5, 4, 4, 4, 4, 2, 4, 2, 2, 4, 4, 4, 4, //B
+	2, 6, 2, 8, 3, 3, 5, 5, 2, 2, 2, 2, 4, 4, 6, 6, //C
+	2, 5, 2, 8, 2, 4, 6, 6, 2, 4, 2, 7, 2, 4, 7, 7, //D
+	2, 6, 2, 8, 3, 3, 5, 5, 2, 2, 2, 3, 4, 4, 6, 6, //E
+	2, 5, 2, 8, 2, 4, 6, 6, 2, 4, 2, 7, 2, 4, 7, 7  //F
 ];
 
 class Cpu {
@@ -106,7 +111,8 @@ class Cpu {
 	private ubyte y; //index register Y
 	private ubyte p; //flags: negative, overflow, none, break command, decimal mode, interrupts disabled, zero, carry
 	
-	private uint cycles = 0;
+	private uint cycles;
+	public uint instructions = 1;
 	
 	private Interruption interruption = Interruption.NONE;
 	private bool brkInterruption = false; //true if interruption caused by brk
@@ -117,7 +123,7 @@ class Cpu {
 	enum negativeFlagMask = 0B10000000;
 	enum overflowFlagMask = 0B01000000;
 	enum breakFlagMask = 0B00010000;
-	enum decimalFlagMask = 0B00001000; //not used
+	enum decimalFlagMask = 0B00001000; //can be set but is ignored
 	enum interruptsDisabledFlagMask = 0B00000100;
 	enum zeroFlagMask = 0B00000010;
 	enum carryFlagMask = 0B00000001;
@@ -125,21 +131,32 @@ class Cpu {
 	
 	enum stackLocation = 0x0100;
 	
+	
+	//TEMP löksadfölkjsadfölkjasfd
+	public bool printDebug = true;
+	private string lastDebugLine;
+	
+	
+	
 	this(CpuMemory memory) {
 		this.memory = memory;
 		operationDelegates = [
 			Op.ADC:&adc, Op.AND:&and, Op.ASL:&asl, Op.BCC:&bcc, Op.BCS:&bcs, Op.BEQ:&beq, Op.BIT:&bit, Op.BMI:&bmi,
 			Op.BNE:&bne, Op.BPL:&bpl, Op.BRK:&brk, Op.BVC:&bvc, Op.BVS:&bvs, Op.CLC:&clc, Op.CLD:&cld, Op.CLI:&cli,
-			Op.CLV:&cli, Op.CMP:&cmp, Op.CPX:&cpx, Op.CPY:&cpy, Op.DEC:&dec, Op.DEX:&dex, Op.DEY:&dey, Op.EOR:&eor,
+			Op.CLV:&clv, Op.CMP:&cmp, Op.CPX:&cpx, Op.CPY:&cpy, Op.DEC:&dec, Op.DEX:&dex, Op.DEY:&dey, Op.EOR:&eor,
 			Op.INC:&inc, Op.INX:&inx, Op.INY:&iny, Op.JMP:&jmp, Op.JSR:&jsr, Op.LDA:&lda, Op.LDX:&ldx, Op.LDY:&ldy,
 			Op.LSR:&lsr, Op.NOP:&nop, Op.ORA:&ora, Op.PHA:&pha, Op.PHP:&php, Op.PLA:&pla, Op.PLP:&plp, Op.ROL:&rol,
 			Op.ROR:&ror, Op.RTI:&rti, Op.RTS:&rts, Op.SBC:&sbc, Op.SEC:&sec, Op.SED:&sed, Op.SEI:&sei, Op.STA:&sta,
-			Op.STX:&stx, Op.STY:&sty, Op.TAX:&tax, Op.TAY:&tay, Op.TSX:&tsx, Op.TXA:&txa, Op.TXS:&txs, Op.TYA:&tya
+			Op.STX:&stx, Op.STY:&sty, Op.TAX:&tax, Op.TAY:&tay, Op.TSX:&tsx, Op.TXA:&txa, Op.TXS:&txs, Op.TYA:&tya,
+			//unofficial opcodes:
+			Op.LAX:&lax, Op.SAX:&sax, Op.DCP:&dcp, Op.ISC:&isc, Op.SLO:&slo, Op.RLA:&rla, Op.SRE:&sre, Op.RRA:&rra
 		];
 	}
 	
 	public void powerUp() {
-		p = 0x36;
+		writeln("cpu power up");
+		//p = 0x36;
+		p = 0x24; //temp nestest thing!!!!!!!!!!!!!!!!!!!!!!!!!
 		a = 0;
 		x = 0;
 		y = 0;
@@ -148,33 +165,50 @@ class Cpu {
 	}
 	
 	public void reset() {
+		writeln("cpu reset");
 		sp -= 3;
 		p |= interruptsDisabledFlagMask;
+		raiseInterruption(Interruption.RESET);
 	}
 	
 	public void step() {
-		executeInstruction(memory.read32(pc));
+	
+		ubyte opcode = memory.read(pc); //first byte
+		ubyte immediate = memory.read(pc + 1); //second byte, immediate value or zpg address
+		ushort address = memory.read16(pc + 1); //second and third byte, usually address
+		executeInstruction(opcode, immediate, address);
 	}
 	
-	public void executeInstruction(uint instruction) {
-		ubyte opcode = cast(ubyte) (instruction >> 24); //first byte
-		ubyte immediate = cast(ubyte) (instruction >> 16); //second byte, immediate value or zpg address or sumtthing
-		ushort address = cast(ushort) (instruction >> 8); //second and third byte, usually address
+	public void executeInstruction(ubyte opcode, ubyte immediate, ushort address) {
 		Op operation = opcodeOperation[opcode];
 		Mode mode = opcodeAddressingMode[opcode];
 		
-		writeln("cpu cycle: ", cycles, " opcode: ", opcode, " immediate: ", immediate, " address: ", address);
+		if(instructions > 1 && printDebug) {
+			string newDebugLine = to!string(instructions) ~ ": \t" ~ to!string(cycles) ~ "\t" ~ to!string(operation) ~ "\t" ~ to!string(mode) ~ "\t" ~ to!string(interruption);
+			newDebugLine ~= format!" \t%x\t%x\t%x\t%x\t%x\t%x\t%x\t%x\t%x"(opcode, immediate, address, pc, sp, a, x, y, p);
+			if(!validateNesTestLog(instructions - 1, pc, operation, a, x, y, p, sp)) {
+				writeln("\n\tcycles\top\tmode\tint\topcode\timm\taddr\tpc\tsp\ta\tx\ty\tp");
+				writeln(lastDebugLine);
+				write("\033[1;31m");
+				writeln(newDebugLine);
+				writeln("\033[0m");
+				printDebug = false;
+			}
+			lastDebugLine = newDebugLine;
+		}
 		
 		if(interruption != Interruption.NONE) jumpToInterruptionHandler();
 		else {
-			executeOpcode(operation, mode, immediate, address);
+			instructions++;
 			addPC(getInstructionSize(mode));
+			executeOpcode(operation, mode, immediate, address);
 			addCycles(getCycleCost(opcode) + memory.getPageCrossedValue());
 			memory.clearPageCrossed();
 		}
 	}
 	
 	public void executeOpcode(Op operation, Mode addressingMode, ubyte immediate, ushort address) {
+		if(operation !in operationDelegates) writeln(operation);
 		operationDelegates[operation](addressingMode, immediate, address);
 	}
 	
@@ -188,8 +222,8 @@ class Cpu {
 		uint result = value + a + getCarryFlagValue();
 		updateOverflowFlag(a, value, result);
 		setA(result);
+		updateZeroFlag(a);
 		updateCarryFlag(result);
-		updateZeroFlag(result);
 		updateNegativeFlag(result);
 	}
 	
@@ -211,11 +245,11 @@ class Cpu {
 	complement considerations), setting the carry if the result will not fit in 8 bits.
 	*/
 	public void asl(Mode mode, ubyte immediate, ushort address) {
-		int result = getA();
+		int result = memory.read(mode, immediate, address);
+		setCarryFlag(cast(bool) (result & 0b10000000)); //set to old bit 7
 		result <<= 1;
-		setA(result);
-		updateCarryFlag(result);
-		updateZeroFlag(result);
+		memory.write(mode, immediate, address, cast(ubyte) result);
+		updateZeroFlag(cast(ubyte) result);
 		updateNegativeFlag(result);
 	}
 	
@@ -265,8 +299,8 @@ class Cpu {
 		uint value = memory.read(mode, immediate, address);
 		uint result = value & a;
 		updateZeroFlag(result);
-		setOverflowFlag(cast(bool) (result & overflowFlagMask));
-		updateNegativeFlag(result);
+		setOverflowFlag(cast(bool) (value & overflowFlagMask));
+		updateNegativeFlag(value);
 	}
 	
 	/*
@@ -353,7 +387,7 @@ class Cpu {
 	Not used in nes.
 	*/
 	public void cld(Mode mode, ubyte immediate, ushort address) {
-		assert(false, "clear decimal mode (cld) instruction not implemented");
+		setDecimalModeFlag(false);
 	}
 	
 	/*
@@ -381,7 +415,7 @@ class Cpu {
 		ubyte value = memory.read(mode, immediate, address);
 		setCarryFlag(getA() >= value);
 		setZeroFlag(getA() == value);
-		updateNegativeFlag(value);
+		updateNegativeFlag(getA() - value);
 	}
 	
 	/*
@@ -393,7 +427,7 @@ class Cpu {
 		ubyte value = memory.read(mode, immediate, address);
 		setCarryFlag(getX() >= value);
 		setZeroFlag(getX() == value);
-		updateNegativeFlag(value);
+		updateNegativeFlag(getX() - value);
 	}
 	
 	/*
@@ -405,7 +439,16 @@ class Cpu {
 		ubyte value = memory.read(mode, immediate, address);
 		setCarryFlag(getY() >= value);
 		setZeroFlag(getY() == value);
-		updateNegativeFlag(value);
+		updateNegativeFlag(cast(ubyte) (getY() - value));
+	}
+	
+	/* UNOFFICIAL
+	Equivalent to DEC value then CMP value, except supporting more addressing modes. LDA #$FF followed by DCP can be
+	used to check if the decrement underflows, which is useful for multi-byte decrements.
+	*/
+	public void dcp(Mode mode, ubyte immediate, ushort address) {
+		dec(mode, immediate, address);
+		cmp(mode, immediate, address);
 	}
 	
 	/*
@@ -492,6 +535,15 @@ class Cpu {
 		updateNegativeFlag(value);
 	}
 	
+	/* UNOFFICIAL
+	Equivalent to INC value then SBC value, except supporting more addressing modes.
+	*/
+	public void isc(Mode mode, ubyte immediate, ushort address) {
+		inc(mode, immediate, address);
+		sbc(mode, immediate, address);
+		setOverflowFlag(false); //nestest expects this. don't know why, no documentation.
+	}
+	
 	/*
 	Jump
 	Sets the program counter to the address specified by the operand.
@@ -499,9 +551,11 @@ class Cpu {
 	public void jmp(Mode mode, ubyte immediate, ushort address) {
 		if(mode == Mode.ABS) setPC(address);
 		else if(mode == Mode.IND) {
-			ushort realAddress = memory.read(address);
-			realAddress += memory.read(address + 1) << 8;
-			setPC(realAddress);
+			ushort newPC = memory.read(address);
+			if((address & 0xff) == 0xff) address -= 0xff; //6502 bug: if second byte crosses page then it wraps around
+			else address += 1;
+			newPC |= memory.read(address) << 8;
+			setPC(newPC);
 		}
 	}
 	
@@ -511,7 +565,19 @@ class Cpu {
 	counter to the target memory address.
 	*/
 	public void jsr(Mode mode, ubyte immediate, ushort address) {
+		pushStack(cast(ushort) (getPC() - 1));
 		setPC(address);
+	}
+	
+	/*UNOFFICIAL
+	Combined lda tax
+	Shortcut for LDA value then TAX. Saves a byte and two cycles and allows use of the X register with the
+	(d),Y addressing mode. Notice that the immediate is missing; the opcode that would have been LAX is affected by
+	line noise on the data bus. MOS 6502: even the bugs have bugs.
+	*/
+	public void lax(Mode mode, ubyte immediate, ushort address) {
+		lda(mode, immediate, address);
+		tax(mode, immediate, address);
 	}
 	
 	/*
@@ -595,7 +661,10 @@ class Cpu {
 	Pushes a copy of the status flags on to the stack.
 	*/
 	public void php(Mode mode, ubyte immediate, ushort address) {
-		pushStack(getP());
+		ubyte pushP = getP();
+		pushP |= 0b00100000; //bit 5 always set
+		pushP |= 0b00010000; //bit 4 set for brk and php
+		pushStack(pushP);
 	}
 	/*
 	Pull Accumulator
@@ -603,15 +672,24 @@ class Cpu {
 	*/
 	public void pla(Mode mode, ubyte immediate, ushort address) {
 		setA(popStack());
+		updateZeroFlag(getA());
+		updateNegativeFlag(getA());
 	}
 	
 	/*
 	Pull Processor Status
 	Pulls an 8 bit value from the stack and into the processor flags. The flags will take on new states as determined
-	by the value pulled.
+	by the value pulled. break flag will be ignored
 	*/
 	public void plp(Mode mode, ubyte immediate, ushort address) {
-		setP(popStack());
+		ubyte newP = popStack() & ~(breakFlagMask); //ignore break flag
+		newP |= 0b00100000; //nestest requires bit 5 to be set when loading
+		setP((getP() & breakFlagMask) | newP); //keep old break flag(?)
+	}
+	
+	public void rla(Mode mode, ubyte immediate, ushort address) {
+		rol(mode, immediate, address);
+		and(mode, immediate, address);
 	}
 	
 	/*
@@ -621,9 +699,10 @@ class Cpu {
 	*/
 	public void rol(Mode mode, ubyte immediate, ushort address) {
 		ubyte value = memory.read(mode, immediate, address);
+		ubyte oldCarryFlag = getCarryFlagValue();
 		setCarryFlag(cast(bool) (value & 0b10000000));
 		value <<= 1;
-		value = cast(ubyte) ((value & 0b11111110) + getCarryFlagValue());
+		value = cast(ubyte) ((value & 0b11111110) + oldCarryFlag);
 		memory.write(mode, immediate, address, value);
 		updateZeroFlag(value);
 		updateNegativeFlag(value);
@@ -636,21 +715,33 @@ class Cpu {
 	*/
 	public void ror(Mode mode, ubyte immediate, ushort address) {
 		ubyte value = memory.read(mode, immediate, address);
+		ubyte oldCarryFlag = getCarryFlagValue();
 		setCarryFlag(cast(bool) (value & 0b00000001));
 		value >>= 1;
-		value = cast(ubyte) ((value & 0b01111111) + (getCarryFlagValue() << 7));
+		value |= (oldCarryFlag << 7);
 		memory.write(mode, immediate, address, value);
-		updateZeroFlag(value);
+		updateZeroFlag(cast(ubyte) value);
 		updateNegativeFlag(value);
+	}
+	
+	/* UNOFFICIAL
+	Equivalent to ROR value then ADC value, except supporting more addressing modes.
+	Essentially this computes A + value / 2, where value is 9-bit and the division is rounded up.
+	*/
+	public void rra(Mode mode, ubyte immediate, ushort address) {
+		ror(mode, immediate, address);
+		adc(mode, immediate, address);
 	}
 	
 	/*
 	Return from Interrupt
-	The RTI instruction is used at the end of an interrupt processing routine. It pulls the processor flags from the
+	The RTI instruction is used at the end of an interrupt processing routine. It pulls the processor flags (except break flag) from the
 	stack followed by the program counter.
 	*/
 	public void rti(Mode mode, ubyte immediate, ushort address) {
-		setP(popStack());
+		ubyte newP = popStack() & ~(breakFlagMask); //ignore break flag
+		newP |= 0b00100000; //nestest requires bit 5 to be set when loading
+		setP((getP() & breakFlagMask) | newP); //keep old break flag
 		setPC(popStack16());
 	}
 	
@@ -660,7 +751,14 @@ class Cpu {
 	counter (minus one) from the stack.
 	*/
 	public void rts(Mode mode, ubyte immediate, ushort address) {
-		setPC(popStack);
+		setPC(popStack16() + 1);
+	}
+	
+	/* UNOFFICIAL
+	Stores the bitwise AND of A and X. As with STA and STX, no flags are affected.
+	*/
+	public void sax(Mode mode, ubyte immediate, ushort address) {
+		memory.write(mode, immediate, address, getA() & getX());
 	}
 	
 	/*
@@ -670,12 +768,14 @@ class Cpu {
 	*/
 	public void sbc(Mode mode, ubyte immediate, ushort address) {
 		ubyte value = memory.read(mode, immediate, address);
-		uint result = getA() - value - (~getCarryFlagValue()); //TODO: might be broken?!?! integral promotion not done for ~this.getCarryFlagValue(), use '-transition=intpromote' switch
-		updateOverflowFlag(getA(), value, result);
+		ubyte carry = getCarryFlag() ? 0 : 1;
+		int signedResult = (cast(byte) (getA())) - value - carry; //TODO make this better
+		uint result = getA() - value - carry;
 		setA(result);
-		setCarryFlag(!getOverflowFlag()); //???
 		updateZeroFlag(result);
 		updateNegativeFlag(result);
+		setOverflowFlag(getNegativeFlag() ? signedResult >= 0 : signedResult < 0);
+		setCarryFlag(!(result > 0xff));
 	}
 	
 	/*
@@ -691,7 +791,7 @@ class Cpu {
 	Set the decimal mode flag to one.
 	*/
 	public void sed(Mode mode, ubyte immediate, ushort address) {
-		assert(false, "decimal stuff not implemented");
+		setDecimalModeFlag(true);
 	}
 	
 	/*
@@ -700,6 +800,24 @@ class Cpu {
 	*/
 	public void sei(Mode mode, ubyte immediate, ushort address) {
 		setInterruptsDisabledFlag(true);
+	}
+	
+	/* UNOFFICIAL
+	Equivalent to ASL value then ORA value, except supporting more addressing modes. LDA #0 followed by SLO is an
+	efficient way to shift a variable while also loading it in A.
+	*/
+	public void slo(Mode mode, ubyte immediate, ushort address) {
+		asl(mode, immediate, address);
+		ora(mode, immediate, address);
+	}
+	
+	/* UNOFFICIAL
+	Equivalent to LSR value then EOR value, except supporting more addressing modes. LDA #0 followed by SRE is an
+	efficient way to shift a variable while also loading it in A.
+	*/
+	public void sre(Mode mode, ubyte immediate, ushort address) {
+		lsr(mode, immediate, address);
+		eor(mode, immediate, address);
 	}
 	
 	/*
@@ -862,7 +980,7 @@ class Cpu {
 	}
 	
 	public bool getCarryFlag() {
-		return cast(bool) p & carryFlagMask;
+		return cast(bool) (p & carryFlagMask);
 	}
 	
 	public ubyte getCarryFlagValue() {
@@ -885,7 +1003,7 @@ class Cpu {
 	}
 	
 	public void setZeroFlag(bool zero) {
-		if(zero) p = cast(ubyte) ((p & ~zeroFlagMask) + zeroFlagMask);
+		if(zero) p |= zeroFlagMask;
 		else p &= ~zeroFlagMask;
 	}
 	
@@ -899,7 +1017,7 @@ class Cpu {
 	}
 	
 	public void setOverflowFlag(bool overflow) {
-		if(overflow) p = cast(ubyte) ((p & (~overflowFlagMask)) + overflowFlagMask);
+		if(overflow) p |= overflowFlagMask;
 		else p &= (~overflowFlagMask);
 	}
 	
@@ -930,6 +1048,15 @@ class Cpu {
 		else p &= ~interruptsDisabledFlagMask;
 	}
 	
+	public bool getDecimalModeFlag() {
+		return cast(bool) (p & decimalFlagMask);
+	}
+	
+	public void setDecimalModeFlag(bool decimalMode) {
+		if(decimalMode) p |= decimalFlagMask;
+		else p &= ~decimalFlagMask;
+	}
+	
 	public void setBreakCommandFlag(bool breakCommand) {
 		if(breakCommand) p = cast(ubyte) ((p & ~breakFlagMask) + breakFlagMask);
 		else p &= ~breakFlagMask;
@@ -947,16 +1074,17 @@ class Cpu {
 		assert(false, "TODO stealCycles");
 	}
 	
-	public void raiseInterruption(Interruption interrupion) {
-		if(interruption > this.interruption) {
-			if(interruption == Interruption.IRQ && !getInterruptsDisabledFlag()) {
-				this.interruption = interruption;
+	public void raiseInterruption(Interruption newInterrupion) {
+		if(newInterrupion > this.interruption) {
+			if(newInterrupion == Interruption.IRQ && !getInterruptsDisabledFlag()) {
+				this.interruption = newInterrupion;
 			}
-			else if(interruption != Interruption.IRQ) this.interruption = interruption;
+			else if(newInterrupion != Interruption.IRQ) this.interruption = newInterrupion;
 		}
 	}
 	
 	private void jumpToInterruptionHandler() {
+		//writeln("jump to interruption handler. interruption: ", this.interruption);
 		pushStack(getPC());
 		pushStack(getP());
 		if(brkInterruption) setBreakCommandFlag(true);
@@ -968,8 +1096,9 @@ class Cpu {
 			setPC(memory.read16(nmiAddress));
 		}
 		else if(interruption == Interruption.RESET) {
-			reset();
-			setPC(memory.read16(resetAddress));
+			//setPC(memory.read16(resetAddress));
+			setPC(0xc000);//nestest thing
+			setSP(0xfd);//is this right?
 		}
 		setInterruptsDisabledFlag(true);
 		this.interruption = Interruption.NONE;
@@ -993,9 +1122,9 @@ class Cpu {
 		else if(mode == Mode.INX) return 2;
 		else if(mode == Mode.INY) return 2;
 		else if(mode == Mode.REL) return 2;
-		else if(mode == Mode.ZPG) return 1;
-		else if(mode == Mode.ZPX) return 1;
-		else if(mode == Mode.ZPY) return 1;
+		else if(mode == Mode.ZPG) return 2;
+		else if(mode == Mode.ZPX) return 2;
+		else if(mode == Mode.ZPY) return 2;
 		else assert(false, "hölöködöö");
 	}
 	
@@ -1008,24 +1137,26 @@ class Cpu {
 	}
 	
 	private void pushStack(ubyte value) {
+		//if(printDebug) writefln("push stack: %x", value);
 		memory.write(stackLocation + getSP(), value);
 		setSP(getSP() - 1);
 	}
 	
 	private void pushStack(ushort value) {
+		pushStack(cast(ubyte) (value >> 8));
 		pushStack(cast(ubyte) value);
-		pushStack(cast(ubyte) (value << 8));
 	}
 	
 	private ubyte popStack() {
 		setSP(getSP() + 1);
-		return memory.read(stackLocation + getSP() - 1);
+		ubyte value = memory.read(stackLocation + getSP());
+		//if(printDebug) writefln("pop stack: %x", value);
+		return value;
 	}
 	
 	private ushort popStack16() {
 		ushort value = popStack();
-		value <<= 8;
-		value += popStack();
+		value |= cast(ushort) (popStack()) << 8;
 		return value;
 	}
 

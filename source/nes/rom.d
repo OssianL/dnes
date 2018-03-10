@@ -49,14 +49,16 @@ class Rom {
 		assert(counter + prgRomSize + chrRomSize <= file.length);
 		_prgBanks = new PrgBank[prgBankCount];
 		for(int i = 0; i < prgBankCount; i++) {
+			_prgBanks[i] = new ubyte[prgBankSize];
 			int start = counter + (i * prgBankSize);
-			_prgBanks[i] = file[start..start+prgBankSize];
+			_prgBanks[i][] = file[start..start+prgBankSize];
 		}
 		counter += prgBankCount * prgBankSize;
 		_chrBanks = new ChrBank[chrBankCount];
 		for(int i = 0; i < chrBankCount; i++) {
+			_chrBanks[i] = new ubyte[chrBankSize];
 			int start = counter + (i * chrBankSize);
-			_chrBanks[i] = file[start..start+chrBankSize];
+			_chrBanks[i][] = file[start..start+chrBankSize];
 		}
 		counter += chrBankCount * chrBankSize;
 		//PlayChoice INST-ROM and PROM not implemented
