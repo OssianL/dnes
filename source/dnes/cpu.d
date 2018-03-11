@@ -121,7 +121,7 @@ class Cpu {
 	private Mode mode;
 	
 	private uint cycles;
-	private uint instructions = 1;
+	private uint instructions;
 	
 	private Interruption interruption = Interruption.NONE;
 	private bool brkInterruption = false; //true if interruption caused by brk

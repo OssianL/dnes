@@ -21,10 +21,10 @@ unittest {
 	string lastDebugLine;
 	for(int i = 0; i < 8991; i++) {
 		cpu.loadNextInstruction();
-		string newDebugLine = to!string(cpu.getInstructions()) ~ ": \t" ~ to!string(cpu.getCycles());
+		string newDebugLine = to!string(cpu.getInstructions() + 1) ~ ": \t" ~ to!string(cpu.getCycles());
 		newDebugLine ~= "\t" ~ to!string(cpu.getOperation()) ~ "\t" ~ to!string(cpu.getMode()) ~ "\t" ~ to!string(cpu.getInterruption());
 		newDebugLine ~= format!" \t%x\t%x\t%x\t%x\t%x\t%x\t%x\t%x\t%x"(cpu.getOpcode(), cpu.getImmediate(), cpu.getAddress(), cpu.getPC(), cpu.getSP(), cpu.getA(), cpu.getX(), cpu.getY(), cpu.getP());
-		if(!validateNesTestLog(cpu.getInstructions() - 1, cpu.getPC(), cpu.getOperation(), cpu.getA(), cpu.getX(), cpu.getY(), cpu.getP(), cpu.getSP())) {
+		if(!validateNesTestLog(cpu.getInstructions(), cpu.getPC(), cpu.getOperation(), cpu.getA(), cpu.getX(), cpu.getY(), cpu.getP(), cpu.getSP())) {
 			writeln("\n\tcycles\top\tmode\tint\topcode\timm\taddr\tpc\tsp\ta\tx\ty\tp");
 			writeln(lastDebugLine);
 			write("\033[1;31m");
