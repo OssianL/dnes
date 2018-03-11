@@ -357,8 +357,8 @@ class Cpu {
 		return instructions;
 	}
 	
-	public ubyte getOpCode() {
-		return opCode;
+	public ubyte getOpcode() {
+		return opcode;
 	}
 	
 	public ubyte getImmediate() {
@@ -369,7 +369,7 @@ class Cpu {
 		return address;
 	}
 	
-	public ubyte getOperation() {
+	public Op getOperation() {
 		return operation;
 	}
 	
@@ -381,8 +381,8 @@ class Cpu {
 		return interruption;
 	}
 	
-	public void stall(int cycles) {
-		assert(false, "TODO stealCycles"); //TODO
+	public void setInterruption(Interruption interruption) {
+		this.interruption = interruption;
 	}
 	
 	public void raiseInterruption(Interruption newInterrupion) {
@@ -394,6 +394,10 @@ class Cpu {
 		}
 	}
 
+	public void stall(int cycles) {
+		assert(false, "TODO stealCycles"); //TODO
+	}
+	
 	/*
 	Add with Carry
 	This instruction adds the contents of a memory location to the accumulator together with the carry bit.
@@ -1103,8 +1107,7 @@ class Cpu {
 			setPC(memory.read16(nmiAddress));
 		}
 		else if(interruption == Interruption.RESET) {
-			//setPC(memory.read16(resetAddress));
-			setPC(0xc000);//nestest thing
+			setPC(memory.read16(resetAddress));
 			setSP(0xfd);//is this right?
 		}
 		setInterruptsDisabledFlag(true);

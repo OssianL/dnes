@@ -2,11 +2,14 @@ module dnes.tests.nestest;
 
 import dnes.nes;
 import dnes.cpu;
+import dnes.rom;
+import main;
 import std.stdio;
 import std.file;
 import std.regex;
 import std.conv;
 import std.string;
+
 
 unittest {
 	Nes nes = new Nes();
@@ -16,20 +19,22 @@ unittest {
 	nes.powerUp();
 	cpu.setP(0x24);
 	cpu.setPC(0xc000);
+	cpu.setInterruption(Interruption.NONE);
 	
 	string lastDebugLine;
 	for(int i = 0; i < 8991; i++) {
 		cpu.loadNextInstruction();
 		string newDebugLine = to!string(cpu.getInstructions()) ~ ": \t" ~ to!string(cpu.getCycles());
-		nesDebugLine ~= "\t" ~ to!string(cpu.getOperation()) ~ "\t" ~ to!string(cpu.getMode()) ~ "\t" ~ to!string(cpu.getInterruption());
-		newDebugLine ~= format!" \t%x\t%x\t%x\t%x\t%x\t%x\t%x\t%x\t%x"(cpu.getOpcode(), cpu.getImmediate(), cpu.getAddress(), cpu.getPc(), cpu.getSp(), cpu.getA(), cpu.getX(), cpu.getY(), cpu.getP());
-		if(!validateNesTestLog(cpu.getInstructions() - 1, cpu.getPc(), cpu.getOperation(), cpu.getA(), cpu.getX(), cpu.getY(), cpu.getP(), cpu.getSp())) {
+		newDebugLine ~= "\t" ~ to!string(cpu.getOperation()) ~ "\t" ~ to!string(cpu.getMode()) ~ "\t" ~ to!string(cpu.getInterruption());
+		newDebugLine ~= format!" \t%x\t%x\t%x\t%x\t%x\t%x\t%x\t%x\t%x"(cpu.getOpcode(), cpu.getImmediate(), cpu.getAddress(), cpu.getPC(), cpu.getSP(), cpu.getA(), cpu.getX(), cpu.getY(), cpu.getP());
+		if(!validateNesTestLog(cpu.getInstructions() - 1, cpu.getPC(), cpu.getOperation(), cpu.getA(), cpu.getX(), cpu.getY(), cpu.getP(), cpu.getSP())) {
 			writeln("\n\tcycles\top\tmode\tint\topcode\timm\taddr\tpc\tsp\ta\tx\ty\tp");
 			writeln(lastDebugLine);
 			write("\033[1;31m");
 			writeln(newDebugLine);
-			writeln("\033[0m");
-			writefln("expected:\t%s\t%x\t%x\t%x\t%x\t%x", nesTestOp, nesTestPC, nesTestSP, nesTestA, nesTestX, nesTestY, nesTestP);
+			write("\033[0m");
+			writefln("expected:\t%s\t\t\t\t\t\t%x\t%x\t%x\t%x\t%x\t%x", nesTestOp, nesTestPC, nesTestSP, nesTestA, nesTestX, nesTestY, nesTestP);
+			assert(false, "nestest failed");
 		}
 		lastDebugLine = newDebugLine;
 		cpu.step();
