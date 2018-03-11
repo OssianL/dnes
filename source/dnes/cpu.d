@@ -112,7 +112,25 @@ class Cpu {
 	private ubyte a; //accumulator
 	private ubyte x; //index register X
 	private ubyte y; //index register Y
-	private ubyte p; //flags: negative, overflow, none, break command, decimal mode, interrupts disabled, zero, carry
+	
+	//status register
+	private bool negativeFlag;
+	private bool overflowFlag;
+	private bool unusedFlag;
+	private bool breakFlag;
+	private bool decimalModeFlag;
+	private bool interruptsDisabledFlag;
+	private bool zeroFlag;
+	private bool carryFlag;
+	enum negativeFlagMask = 0B10000000;
+	enum overflowFlagMask = 0B01000000;
+	enum unusedFlagMask = 0B00100000;
+	enum breakFlagMask = 0B00010000;
+	enum decimalModeFlagMask = 0B00001000; //can be set but is ignored
+	enum interruptsDisabledFlagMask = 0B00000100;
+	enum zeroFlagMask = 0B00000010;
+	enum carryFlagMask = 0B00000001;
+	enum signBitMask = 0b10000000;
 	
 	private ubyte opcode;
 	private ubyte immediate;
@@ -129,14 +147,6 @@ class Cpu {
 	enum nmiAddress = 0xFFFA;
 	enum resetAddress = 0xFFFC;
 	
-	enum negativeFlagMask = 0B10000000;
-	enum overflowFlagMask = 0B01000000;
-	enum breakFlagMask = 0B00010000;
-	enum decimalFlagMask = 0B00001000; //can be set but is ignored
-	enum interruptsDisabledFlagMask = 0B00000100;
-	enum zeroFlagMask = 0B00000010;
-	enum carryFlagMask = 0B00000001;
-	enum signBitMask = 0b10000000;
 	
 	enum stackAddress = 0x0100;
 	
@@ -158,7 +168,7 @@ class Cpu {
 	
 	public void powerUp() {
 		writeln("cpu power up");
-		p = 0x36;
+		setP(cast(ubyte) 0x36);
 		a = 0;
 		x = 0;
 		y = 0;
@@ -169,7 +179,7 @@ class Cpu {
 	public void reset() {
 		writeln("cpu reset");
 		sp -= 3;
-		p |= interruptsDisabledFlagMask;
+		setInterruptsDisabledFlag(true);
 		raiseInterruption(Interruption.RESET);
 	}
 	
@@ -257,66 +267,35 @@ class Cpu {
 	}
 	
 	public ubyte getP() {
-		return this.p;
+		ubyte p;
+		if(negativeFlag) p |= negativeFlagMask;
+		if(overflowFlag) p |= overflowFlagMask;
+		if(unusedFlag) p |= unusedFlagMask;
+		if(breakFlag) p |= breakFlagMask;
+		if(decimalModeFlag) p |= decimalModeFlagMask;
+		if(interruptsDisabledFlag) p |= interruptsDisabledFlagMask;
+		if(zeroFlag) p |= zeroFlagMask;
+		if(carryFlag) p |= carryFlagMask;
+		return p;
 	}
 	
 	public void setP(ubyte p) {
-		this.p = p;
-	}
-	
-	public bool getCarryFlag() {
-		return cast(bool) (p & carryFlagMask);
-	}
-	
-	public ubyte getCarryFlagValue() {
-		if(getCarryFlag()) return 1;
-		else return 0;
-	}
-	
-	public void setCarryFlag(bool carry) {
-		if(carry) p = cast(ubyte) ((p & ~carryFlagMask) + carryFlagMask);
-		else p &= ~carryFlagMask;
-	}
-	
-	public void updateCarryFlag(int number) {
-		if(number > 0xFF) setCarryFlag(true);
-		else setCarryFlag(false);
-	}
-	
-	public bool getZeroFlag() {
-		return cast(bool) (p & zeroFlagMask);
-	}
-	
-	public void setZeroFlag(bool zero) {
-		if(zero) p |= zeroFlagMask;
-		else p &= ~zeroFlagMask;
-	}
-	
-	public void updateZeroFlag(int zero) {
-		if(zero == 0) setZeroFlag(true);
-		else setZeroFlag(false);
-	}
-	
-	public bool getOverflowFlag() {
-		return cast(bool) (p & overflowFlagMask);
-	}
-	
-	public void setOverflowFlag(bool overflow) {
-		if(overflow) p |= overflowFlagMask;
-		else p &= (~overflowFlagMask);
-	}
-	
-	public void updateOverflowFlag(uint value1, uint value2, uint result) {
-		setOverflowFlag(cast(bool) ((value1 ^ result) & (value2 ^ result) & signBitMask));
+		setNegativeFlag(cast(bool) (p & negativeFlagMask));
+		setOverflowFlag(cast(bool) (p & overflowFlagMask));
+		setUnusedFlag(cast(bool) (p & unusedFlagMask));
+		setBreakFlag(cast(bool) (p & breakFlagMask));
+		setDecimalModeFlag(cast(bool) (p & decimalModeFlagMask));
+		setInterruptsDisabledFlag(cast(bool) (p & interruptsDisabledFlagMask));
+		setZeroFlag(cast(bool) (p & zeroFlagMask));
+		setCarryFlag(cast(bool) (p & carryFlagMask));
 	}
 	
 	public bool getNegativeFlag() {
-		return cast(bool) (p & negativeFlagMask);
+		return negativeFlag;
 	}
 	
-	public void setNegativeFlag(bool negative) {
-		if(negative) p = cast(ubyte) ((p & ~negativeFlagMask) + negativeFlagMask);
-		else p &= ~negativeFlagMask;
+	public void setNegativeFlag(bool negativeFlag) {
+		this.negativeFlag = negativeFlag;
 	}
 	
 	public void updateNegativeFlag(int value) {
@@ -324,33 +303,81 @@ class Cpu {
 		else setNegativeFlag(false);
 	}
 	
-	public bool getInterruptsDisabledFlag() {
-		return cast(bool) (p & interruptsDisabledFlagMask);
+	public bool getOverflowFlag() {
+		return overflowFlag;
 	}
 	
-	public void setInterruptsDisabledFlag(bool interruptsDisabled) {
-		if(interruptsDisabled) p = cast(ubyte) ((p & ~interruptsDisabledFlagMask) + interruptsDisabledFlagMask);
-		else p &= ~interruptsDisabledFlagMask;
+	public void setOverflowFlag(bool overflowFlag) {
+		this.overflowFlag = overflowFlag;
 	}
 	
-	public bool getDecimalModeFlag() {
-		return cast(bool) (p & decimalFlagMask);
+	public void updateOverflowFlag(uint value1, uint value2, uint result) {
+		setOverflowFlag(cast(bool) ((value1 ^ result) & (value2 ^ result) & signBitMask));
 	}
 	
-	public void setDecimalModeFlag(bool decimalMode) {
-		if(decimalMode) p |= decimalFlagMask;
-		else p &= ~decimalFlagMask;
+	public bool getUnusedFlag() {
+		return unusedFlag;
 	}
 	
-	public void setBreakCommandFlag(bool breakCommand) {
-		if(breakCommand) p = cast(ubyte) ((p & ~breakFlagMask) + breakFlagMask);
-		else p &= ~breakFlagMask;
+	public void setUnusedFlag(bool unusedFlag) {
+		this.unusedFlag = unusedFlag;
+	}
+	
+	public void setBreakFlag(bool breakFlag) {
+		this.breakFlag = breakFlag;
 	}
 	
 	public bool getBreakCommandFlag() {
-		return cast(bool) (p & breakFlagMask);
+		return breakFlag;
 	}
 	
+	public bool getDecimalModeFlag() {
+		return decimalModeFlag;
+	}
+	
+	public void setDecimalModeFlag(bool decimalModeFlag) {
+		this.decimalModeFlag = decimalModeFlag;
+	}
+	
+	public bool getInterruptsDisabledFlag() {
+		return interruptsDisabledFlag;
+	}
+	
+	public void setInterruptsDisabledFlag(bool interruptsDisabledFlag) {
+		this.interruptsDisabledFlag = interruptsDisabledFlag;
+	}
+	
+	public bool getZeroFlag() {
+		return zeroFlag;
+	}
+	
+	public void setZeroFlag(bool zeroFlag) {
+		this.zeroFlag = zeroFlag;
+	}
+	
+	public void updateZeroFlag(int zero) {
+		if(zero == 0) setZeroFlag(true);
+		else setZeroFlag(false);
+	}
+	
+	public bool getCarryFlag() {
+		return carryFlag;
+	}
+	
+	public ubyte getCarryFlagValue() {
+		if(carryFlag) return 1;
+		else return 0;
+	}
+	
+	public void setCarryFlag(bool carryFlag) {
+		this.carryFlag = carryFlag;
+	}
+	
+	public void updateCarryFlag(int number) {
+		if(number > 0xFF) setCarryFlag(true);
+		else setCarryFlag(false);
+	}
+
 	public uint getCycles() {
 		return cycles;
 	}
@@ -1109,7 +1136,7 @@ class Cpu {
 		//writeln("jump to interruption handler. interruption: ", this.interruption);
 		pushStack(getPC());
 		pushStack(getP());
-		if(brkInterruption) setBreakCommandFlag(true);
+		if(brkInterruption) setBreakFlag(true);
 		brkInterruption = false;
 		if(interruption == Interruption.IRQ) {
 			setPC(memory.read16(irqAddress));
