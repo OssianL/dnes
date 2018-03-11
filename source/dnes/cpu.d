@@ -1,6 +1,6 @@
 module dnes.cpu;
 
-import cpuMemory;
+import dnes.cpumemory;
 import main;
 import std.stdio;
 import std.format;

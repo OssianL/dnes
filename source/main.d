@@ -1,6 +1,6 @@
-import nes;
-import rom;
-import cpu;
+import dnes.nes;
+import dnes.rom;
+import dnes.cpu;
 import std.stdio;
 import derelict.sdl2.sdl;
 import derelict.sdl2.image;

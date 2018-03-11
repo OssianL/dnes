@@ -1,8 +1,8 @@
 module dnes.mappers.mapper;
 
-import nes;
-import rom;
-import mapper0;
+import dnes.nes;
+import dnes.rom;
+import dnes.mappers.mapper0;
 
 
 interface Mapper {

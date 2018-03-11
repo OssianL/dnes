@@ -1,8 +1,8 @@
 module dnes.ppu;
 
-import mapper;
-import cpu;
-import nes;
+import dnes.mappers.mapper;
+import dnes.cpu;
+import dnes.nes;
 import derelict.sdl2.sdl;
 
 enum MirroringType {

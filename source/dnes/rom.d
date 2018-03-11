@@ -1,8 +1,8 @@
 module dnes.rom;
 
+import dnes.ppu;
 import std.file;
 import std.stdio;
-import ppu;
 
 enum prgBankSize = 16384;
 enum chrBankSize = 8192;

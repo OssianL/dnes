@@ -1,9 +1,9 @@
 module dnes.cpumemory;
 
-import cpu;
-import ppu;
-import mapper;
-import nes;
+import dnes.cpu;
+import dnes.ppu;
+import dnes.mappers.mapper;
+import dnes.nes;
 import std.stdio;
 import std.conv;
 
