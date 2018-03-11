@@ -1,9 +1,6 @@
 module dnes.tests.nestest;
 
 import dnes.nes;
-import dnes.cpu;
-import dnes.rom;
-import main;
 import std.stdio;
 import std.file;
 import std.regex;

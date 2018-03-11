@@ -1,7 +1,5 @@
 module dnes.ppu;
 
-import dnes.mappers.mapper;
-import dnes.cpu;
 import dnes.nes;
 import derelict.sdl2.sdl;
 

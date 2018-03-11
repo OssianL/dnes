@@ -1,6 +1,6 @@
 module dnes.rom;
 
-import dnes.ppu;
+import dnes.nes;
 import std.file;
 import std.stdio;
 

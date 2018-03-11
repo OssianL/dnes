@@ -1,11 +1,11 @@
 module dnes.nes;
 
-import dnes.cpu;
-import dnes.ppu;
-import dnes.apu;
-import dnes.cpumemory;
-import dnes.rom;
-import dnes.mappers.mapper;
+public import dnes.cpu;
+public import dnes.ppu;
+public import dnes.apu;
+public import dnes.cpumemory;
+public import dnes.rom;
+public import dnes.mappers.mapper;
 import std.stdio;
 
 enum TvSystem {

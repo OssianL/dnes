@@ -1,7 +1,6 @@
 module dnes.mappers.mapper;
 
 import dnes.nes;
-import dnes.rom;
 import dnes.mappers.mapper0;
 
 
