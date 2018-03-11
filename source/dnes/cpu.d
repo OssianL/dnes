@@ -879,6 +879,11 @@ class Cpu {
 		setP((getP() & breakFlagMask) | newP); //keep old break flag(?)
 	}
 	
+	
+	/* UNOFFICIAL
+	Equivalent to ROL value then AND value, except supporting more addressing modes.
+	LDA #$FF followed by RLA is an efficient way to rotate a variable while also loading it in A.
+	*/
 	private void rla(Mode mode, ubyte immediate, ushort address) {
 		rol(mode, immediate, address);
 		and(mode, immediate, address);
