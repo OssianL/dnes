@@ -1,3 +1,5 @@
+module dnes.nes;
+
 import cpu;
 import ppu;
 import apu;

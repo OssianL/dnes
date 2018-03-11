@@ -1,3 +1,5 @@
+module dnes.rom;
+
 import std.file;
 import std.stdio;
 import ppu;

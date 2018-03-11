@@ -1,3 +1,5 @@
+module dnes.apu;
+
 import nes;
 
 class Apu {

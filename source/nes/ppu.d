@@ -1,3 +1,5 @@
+module dnes.ppu;
+
 import mapper;
 import cpu;
 import nes;

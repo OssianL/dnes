@@ -1,3 +1,5 @@
+module dnes.mappers.mapper;
+
 import nes;
 import rom;
 import mapper0;

@@ -1,3 +1,5 @@
+module dnes.cpumemory;
+
 import cpu;
 import ppu;
 import mapper;

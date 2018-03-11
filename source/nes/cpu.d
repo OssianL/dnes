@@ -1,3 +1,5 @@
+module dnes.cpu;
+
 import cpuMemory;
 import main;
 import std.stdio;
@@ -111,8 +113,14 @@ class Cpu {
 	private ubyte y; //index register Y
 	private ubyte p; //flags: negative, overflow, none, break command, decimal mode, interrupts disabled, zero, carry
 	
+	private ubyte opcode;
+	private ubyte immediate;
+	private ushort address;
+	private Op operation;
+	private Mode mode;
+	
 	private uint cycles;
-	public uint instructions = 1;
+	private uint instructions = 1;
 	
 	private Interruption interruption = Interruption.NONE;
 	private bool brkInterruption = false; //true if interruption caused by brk
@@ -129,14 +137,7 @@ class Cpu {
 	enum carryFlagMask = 0B00000001;
 	enum signBitMask = 0b10000000;
 	
-	enum stackLocation = 0x0100;
-	
-	
-	//TEMP löksadfölkjsadfölkjasfd
-	public bool printDebug = true;
-	private string lastDebugLine;
-	
-	
+	enum stackAddress = 0x0100;
 	
 	this(CpuMemory memory) {
 		this.memory = memory;
@@ -155,8 +156,7 @@ class Cpu {
 	
 	public void powerUp() {
 		writeln("cpu power up");
-		//p = 0x36;
-		p = 0x24; //temp nestest thing!!!!!!!!!!!!!!!!!!!!!!!!!
+		p = 0x36;
 		a = 0;
 		x = 0;
 		y = 0;
@@ -171,47 +171,229 @@ class Cpu {
 		raiseInterruption(Interruption.RESET);
 	}
 	
-	public void step() {
-	
-		ubyte opcode = memory.read(pc); //first byte
-		ubyte immediate = memory.read(pc + 1); //second byte, immediate value or zpg address
-		ushort address = memory.read16(pc + 1); //second and third byte, usually address
-		executeInstruction(opcode, immediate, address);
+	public void loadNextInstruction() {
+		opcode = memory.read(pc); //first byte
+		immediate = memory.read(pc + 1); //second byte, immediate value or zpg address
+		address = memory.read16(pc + 1); //second and third byte, usually address
+		operation = opcodeOperation[opcode];
+		mode = opcodeAddressingMode[opcode];
 	}
 	
-	public void executeInstruction(ubyte opcode, ubyte immediate, ushort address) {
-		Op operation = opcodeOperation[opcode];
-		Mode mode = opcodeAddressingMode[opcode];
-		
-		if(instructions > 1 && printDebug) {
-			string newDebugLine = to!string(instructions) ~ ": \t" ~ to!string(cycles) ~ "\t" ~ to!string(operation) ~ "\t" ~ to!string(mode) ~ "\t" ~ to!string(interruption);
-			newDebugLine ~= format!" \t%x\t%x\t%x\t%x\t%x\t%x\t%x\t%x\t%x"(opcode, immediate, address, pc, sp, a, x, y, p);
-			if(!validateNesTestLog(instructions - 1, pc, operation, a, x, y, p, sp)) {
-				writeln("\n\tcycles\top\tmode\tint\topcode\timm\taddr\tpc\tsp\ta\tx\ty\tp");
-				writeln(lastDebugLine);
-				write("\033[1;31m");
-				writeln(newDebugLine);
-				writeln("\033[0m");
-				printDebug = false;
-			}
-			lastDebugLine = newDebugLine;
-		}
-		
+	public void step() {
 		if(interruption != Interruption.NONE) jumpToInterruptionHandler();
 		else {
 			instructions++;
 			addPC(getInstructionSize(mode));
-			executeOpcode(operation, mode, immediate, address);
+			operationDelegates[operation](mode, immediate, address);
 			addCycles(getCycleCost(opcode) + memory.getPageCrossedValue());
 			memory.clearPageCrossed();
 		}
 	}
 	
-	public void executeOpcode(Op operation, Mode addressingMode, ubyte immediate, ushort address) {
-		if(operation !in operationDelegates) writeln(operation);
-		operationDelegates[operation](addressingMode, immediate, address);
+	public void setA(ubyte a) {
+		this.a = a;
 	}
 	
+	public void setA(int a) {
+		setA(cast(ubyte) a);
+	}
+	
+	public ubyte getA() {
+		return this.a;
+	}
+	
+	public void setX(ubyte x) {
+		this.x = x;
+	}
+	
+	public void setX(int x) {
+		setX(cast(ubyte) x);
+	}
+	
+	public ubyte getX() {
+		return this.x;
+	}
+	
+	public void setY(ubyte y) {
+		this.y = y;
+	}
+	
+	public void setY(int y) {
+		setY(cast(ubyte) y);
+	}
+	
+	public ubyte getY() {
+		return this.y;
+	}
+	
+	public void setPC(ushort pc) {
+		this.pc = pc;
+	}
+	
+	public void setPC(int pc) {
+		setPC(cast(ushort) pc);
+	}
+	
+	public ushort getPC() {
+		return this.pc;
+	}
+	
+	public void addPC(int increment) {
+		setPC(getPC() + increment);
+	}
+	
+	public void setSP(ubyte sp) {
+		this.sp = sp;
+	}
+	
+	public void setSP(int sp) {
+		setSP(cast(ubyte) sp);
+	}
+	
+	public ubyte getSP() {
+		return this.sp;
+	}
+	
+	public ubyte getP() {
+		return this.p;
+	}
+	
+	public void setP(ubyte p) {
+		this.p = p;
+	}
+	
+	public bool getCarryFlag() {
+		return cast(bool) (p & carryFlagMask);
+	}
+	
+	public ubyte getCarryFlagValue() {
+		if(getCarryFlag()) return 1;
+		else return 0;
+	}
+	
+	public void setCarryFlag(bool carry) {
+		if(carry) p = cast(ubyte) ((p & ~carryFlagMask) + carryFlagMask);
+		else p &= ~carryFlagMask;
+	}
+	
+	public void updateCarryFlag(int number) {
+		if(number > 0xFF) setCarryFlag(true);
+		else setCarryFlag(false);
+	}
+	
+	public bool getZeroFlag() {
+		return cast(bool) (p & zeroFlagMask);
+	}
+	
+	public void setZeroFlag(bool zero) {
+		if(zero) p |= zeroFlagMask;
+		else p &= ~zeroFlagMask;
+	}
+	
+	public void updateZeroFlag(int zero) {
+		if(zero == 0) setZeroFlag(true);
+		else setZeroFlag(false);
+	}
+	
+	public bool getOverflowFlag() {
+		return cast(bool) (p & overflowFlagMask);
+	}
+	
+	public void setOverflowFlag(bool overflow) {
+		if(overflow) p |= overflowFlagMask;
+		else p &= (~overflowFlagMask);
+	}
+	
+	public void updateOverflowFlag(uint value1, uint value2, uint result) {
+		setOverflowFlag(cast(bool) ((value1 ^ result) & (value2 ^ result) & signBitMask));
+	}
+	
+	public bool getNegativeFlag() {
+		return cast(bool) (p & negativeFlagMask);
+	}
+	
+	public void setNegativeFlag(bool negative) {
+		if(negative) p = cast(ubyte) ((p & ~negativeFlagMask) + negativeFlagMask);
+		else p &= ~negativeFlagMask;
+	}
+	
+	public void updateNegativeFlag(int value) {
+		if(value & signBitMask) setNegativeFlag(true);
+		else setNegativeFlag(false);
+	}
+	
+	public bool getInterruptsDisabledFlag() {
+		return cast(bool) (p & interruptsDisabledFlagMask);
+	}
+	
+	public void setInterruptsDisabledFlag(bool interruptsDisabled) {
+		if(interruptsDisabled) p = cast(ubyte) ((p & ~interruptsDisabledFlagMask) + interruptsDisabledFlagMask);
+		else p &= ~interruptsDisabledFlagMask;
+	}
+	
+	public bool getDecimalModeFlag() {
+		return cast(bool) (p & decimalFlagMask);
+	}
+	
+	public void setDecimalModeFlag(bool decimalMode) {
+		if(decimalMode) p |= decimalFlagMask;
+		else p &= ~decimalFlagMask;
+	}
+	
+	public void setBreakCommandFlag(bool breakCommand) {
+		if(breakCommand) p = cast(ubyte) ((p & ~breakFlagMask) + breakFlagMask);
+		else p &= ~breakFlagMask;
+	}
+	
+	public bool getBreakCommandFlag() {
+		return cast(bool) (p & breakFlagMask);
+	}
+	
+	public uint getCycles() {
+		return cycles;
+	}
+	
+	public int getInstructions() {
+		return instructions;
+	}
+	
+	public ubyte getOpCode() {
+		return opCode;
+	}
+	
+	public ubyte getImmediate() {
+		return immediate;
+	}
+	
+	public ushort getAddress() {
+		return address;
+	}
+	
+	public ubyte getOperation() {
+		return operation;
+	}
+	
+	public Mode getMode() {
+		return mode;
+	}
+	
+	public Interruption getInterruption() {
+		return interruption;
+	}
+	
+	public void stall(int cycles) {
+		assert(false, "TODO stealCycles"); //TODO
+	}
+	
+	public void raiseInterruption(Interruption newInterrupion) {
+		if(newInterrupion > this.interruption) {
+			if(newInterrupion == Interruption.IRQ && !getInterruptsDisabledFlag()) {
+				this.interruption = newInterrupion;
+			}
+			else if(newInterrupion != Interruption.IRQ) this.interruption = newInterrupion;
+		}
+	}
+
 	/*
 	Add with Carry
 	This instruction adds the contents of a memory location to the accumulator together with the carry bit.
@@ -907,181 +1089,6 @@ class Cpu {
 		updateNegativeFlag(getA());
 	}
 	
-	public void setA(ubyte a) {
-		this.a = a;
-	}
-	
-	public void setA(int a) {
-		setA(cast(ubyte) a);
-	}
-	
-	public ubyte getA() {
-		return this.a;
-	}
-	
-	public void setX(ubyte x) {
-		this.x = x;
-	}
-	
-	public void setX(int x) {
-		setX(cast(ubyte) x);
-	}
-	
-	public ubyte getX() {
-		return this.x;
-	}
-	
-	public void setY(ubyte y) {
-		this.y = y;
-	}
-	
-	public void setY(int y) {
-		setY(cast(ubyte) y);
-	}
-	
-	public ubyte getY() {
-		return this.y;
-	}
-	
-	public void setPC(ushort pc) {
-		this.pc = pc;
-	}
-	
-	public void setPC(int pc) {
-		setPC(cast(ushort) pc);
-	}
-	
-	public ushort getPC() {
-		return this.pc;
-	}
-	
-	public void addPC(int increment) {
-		setPC(getPC() + increment);
-	}
-	
-	public void setSP(ubyte sp) {
-		this.sp = sp;
-	}
-	
-	public void setSP(int sp) {
-		setSP(cast(ubyte) sp);
-	}
-	
-	public ubyte getSP() {
-		return this.sp;
-	}
-	
-	public ubyte getP() {
-		return this.p;
-	}
-	
-	public void setP(ubyte p) {
-		this.p = p;
-	}
-	
-	public bool getCarryFlag() {
-		return cast(bool) (p & carryFlagMask);
-	}
-	
-	public ubyte getCarryFlagValue() {
-		if(getCarryFlag()) return 1;
-		else return 0;
-	}
-	
-	public void setCarryFlag(bool carry) {
-		if(carry) p = cast(ubyte) ((p & ~carryFlagMask) + carryFlagMask);
-		else p &= ~carryFlagMask;
-	}
-	
-	public void updateCarryFlag(int number) {
-		if(number > 0xFF) setCarryFlag(true);
-		else setCarryFlag(false);
-	}
-	
-	public bool getZeroFlag() {
-		return cast(bool) (p & zeroFlagMask);
-	}
-	
-	public void setZeroFlag(bool zero) {
-		if(zero) p |= zeroFlagMask;
-		else p &= ~zeroFlagMask;
-	}
-	
-	public void updateZeroFlag(int zero) {
-		if(zero == 0) setZeroFlag(true);
-		else setZeroFlag(false);
-	}
-	
-	public bool getOverflowFlag() {
-		return cast(bool) (p & overflowFlagMask);
-	}
-	
-	public void setOverflowFlag(bool overflow) {
-		if(overflow) p |= overflowFlagMask;
-		else p &= (~overflowFlagMask);
-	}
-	
-	public void updateOverflowFlag(uint value1, uint value2, uint result) {
-		setOverflowFlag(cast(bool) ((value1 ^ result) & (value2 ^ result) & signBitMask));
-	}
-	
-	public bool getNegativeFlag() {
-		return cast(bool) (p & negativeFlagMask);
-	}
-	
-	public void setNegativeFlag(bool negative) {
-		if(negative) p = cast(ubyte) ((p & ~negativeFlagMask) + negativeFlagMask);
-		else p &= ~negativeFlagMask;
-	}
-	
-	public void updateNegativeFlag(int value) {
-		if(value & signBitMask) setNegativeFlag(true);
-		else setNegativeFlag(false);
-	}
-	
-	public bool getInterruptsDisabledFlag() {
-		return cast(bool) (p & interruptsDisabledFlagMask);
-	}
-	
-	public void setInterruptsDisabledFlag(bool interruptsDisabled) {
-		if(interruptsDisabled) p = cast(ubyte) ((p & ~interruptsDisabledFlagMask) + interruptsDisabledFlagMask);
-		else p &= ~interruptsDisabledFlagMask;
-	}
-	
-	public bool getDecimalModeFlag() {
-		return cast(bool) (p & decimalFlagMask);
-	}
-	
-	public void setDecimalModeFlag(bool decimalMode) {
-		if(decimalMode) p |= decimalFlagMask;
-		else p &= ~decimalFlagMask;
-	}
-	
-	public void setBreakCommandFlag(bool breakCommand) {
-		if(breakCommand) p = cast(ubyte) ((p & ~breakFlagMask) + breakFlagMask);
-		else p &= ~breakFlagMask;
-	}
-	
-	public bool getBreakCommandFlag() {
-		return cast(bool) (p & breakFlagMask);
-	}
-	
-	public uint getCycles() {
-		return cycles;
-	}
-	
-	public void stall(int cycles) {
-		assert(false, "TODO stealCycles");
-	}
-	
-	public void raiseInterruption(Interruption newInterrupion) {
-		if(newInterrupion > this.interruption) {
-			if(newInterrupion == Interruption.IRQ && !getInterruptsDisabledFlag()) {
-				this.interruption = newInterrupion;
-			}
-			else if(newInterrupion != Interruption.IRQ) this.interruption = newInterrupion;
-		}
-	}
 	
 	private void jumpToInterruptionHandler() {
 		//writeln("jump to interruption handler. interruption: ", this.interruption);
@@ -1138,7 +1145,7 @@ class Cpu {
 	
 	private void pushStack(ubyte value) {
 		//if(printDebug) writefln("push stack: %x", value);
-		memory.write(stackLocation + getSP(), value);
+		memory.write(stackAddress + getSP(), value);
 		setSP(getSP() - 1);
 	}
 	
@@ -1149,7 +1156,7 @@ class Cpu {
 	
 	private ubyte popStack() {
 		setSP(getSP() + 1);
-		ubyte value = memory.read(stackLocation + getSP());
+		ubyte value = memory.read(stackAddress + getSP());
 		//if(printDebug) writefln("pop stack: %x", value);
 		return value;
 	}
@@ -1161,24 +1168,4 @@ class Cpu {
 	}
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
