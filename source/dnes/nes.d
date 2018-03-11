@@ -20,11 +20,9 @@ class Nes {
 	private Apu _apu;
 	private Rom _rom;
 	private Mapper _mapper;
-	private CpuMemory _cpuMemory;
 	
 	this() {
-		_cpuMemory = new CpuMemory(this);
-		_cpu = new Cpu(_cpuMemory);
+		_cpu = new Cpu(this);
 		_ppu = new Ppu(this);
 		_apu = new Apu(this);
 	}
@@ -61,5 +59,5 @@ class Nes {
 	public @property Apu apu() {return _apu;}
 	public @property Rom rom() {return _rom;}
 	public @property Mapper mapper() {return _mapper;}
-	public @property CpuMemory cpuMemory() {return _cpuMemory;}
+	public @property CpuMemory cpuMemory() {return _cpu.getMemory();}
 }

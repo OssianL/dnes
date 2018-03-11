@@ -1,6 +1,7 @@
 module dnes.cpu;
 
 import dnes.cpumemory;
+import dnes.nes;
 import main;
 import std.stdio;
 import std.format;
@@ -102,6 +103,7 @@ const byte[256] cycleCosts = [
 
 class Cpu {
 	
+	private Nes nes;
 	private void delegate(Mode, ubyte, ushort)[Op] operationDelegates;
 	private CpuMemory memory;
 	
@@ -139,8 +141,9 @@ class Cpu {
 	
 	enum stackAddress = 0x0100;
 	
-	this(CpuMemory memory) {
-		this.memory = memory;
+	this(Nes nes) {
+		this.nes = nes;
+		this.memory = new CpuMemory(nes);
 		operationDelegates = [
 			Op.ADC:&adc, Op.AND:&and, Op.ASL:&asl, Op.BCC:&bcc, Op.BCS:&bcs, Op.BEQ:&beq, Op.BIT:&bit, Op.BMI:&bmi,
 			Op.BNE:&bne, Op.BPL:&bpl, Op.BRK:&brk, Op.BVC:&bvc, Op.BVS:&bvs, Op.CLC:&clc, Op.CLD:&cld, Op.CLI:&cli,
@@ -392,6 +395,10 @@ class Cpu {
 			}
 			else if(newInterrupion != Interruption.IRQ) this.interruption = newInterrupion;
 		}
+	}
+	
+	public CpuMemory getMemory() {
+		return memory;
 	}
 
 	public void stall(int cycles) {
