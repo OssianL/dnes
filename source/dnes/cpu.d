@@ -1,7 +1,6 @@
 module dnes.cpu;
 
 import dnes.nes;
-import main;
 import std.stdio;
 import std.format;
 import std.conv;
@@ -112,7 +111,6 @@ class Cpu {
 	private ubyte a; //accumulator
 	private ubyte x; //index register X
 	private ubyte y; //index register Y
-	
 	//status register
 	private bool negativeFlag;
 	private bool overflowFlag;
@@ -137,7 +135,6 @@ class Cpu {
 	private ushort address;
 	private Op operation;
 	private Mode mode;
-	
 	private uint cycles;
 	private uint instructions;
 	
@@ -146,7 +143,6 @@ class Cpu {
 	enum irqAddress = 0xFFFE;
 	enum nmiAddress = 0xFFFA;
 	enum resetAddress = 0xFFFC;
-	
 	
 	enum stackAddress = 0x0100;
 	
@@ -1185,7 +1181,6 @@ class Cpu {
 	}
 	
 	private void pushStack(ubyte value) {
-		//if(printDebug) writefln("push stack: %x", value);
 		memory.write(stackAddress + getSP(), value);
 		setSP(getSP() - 1);
 	}
@@ -1198,7 +1193,6 @@ class Cpu {
 	private ubyte popStack() {
 		setSP(getSP() + 1);
 		ubyte value = memory.read(stackAddress + getSP());
-		//if(printDebug) writefln("pop stack: %x", value);
 		return value;
 	}
 	

@@ -1,10 +1,6 @@
 
-//import dnes.nes;
-//import dnes.rom;
-
+import dnes.nes;
 import std.stdio;
-
-/*
 import derelict.sdl2.sdl;
 import derelict.sdl2.image;
 import derelict.sdl2.mixer;
@@ -13,7 +9,6 @@ import derelict.sdl2.ttf;
 SDL_Window* patternTableWindow;
 SDL_Surface* patterTablesurface;
 SDL_Renderer* patternTableRenderer;
-*/
 
 void main() {
 	/*
@@ -23,20 +18,14 @@ void main() {
 	SDL_Delay(5000);
     */
     
-    //dub test linking fails if imported for whole module
-    import dnes.nes;
-    import dnes.rom;
-    
 	Nes nes = new Nes();
 	Nes nes = new Nes();
 	Rom rom = new Rom("testRoms/nestest.nes");
 	nes.loadRom(rom);
 	nes.powerUp();
 	nes.run();
-	
 }
 
-/*
 void loadDerelict() {
 	DerelictSDL2.load();
     DerelictSDL2Image.load();
@@ -53,10 +42,4 @@ void init() {
 	}
 	patterTablesurface = SDL_GetWindowSurface(patternTableWindow);
 }
-*/
-
-/*
-unittest {
-	writeln("test in main works!");
-}*/
 
