@@ -1,9 +1,9 @@
 module dnes.cpu;
 
-import dnes.nes;
+import dnes;
 import std.stdio;
-import std.format;
 import std.conv;
+import std.format;
 
 enum Op {
 	ADC, AND, ASL, BCC, BCS, BEQ, BIT, BMI, BNE, BPL,
@@ -179,6 +179,11 @@ class Cpu {
 		raiseInterruption(Interruption.RESET);
 	}
 	
+	public void step() {
+		loadNextInstruction();
+		executeInstruction();
+	}
+	
 	public void loadNextInstruction() {
 		opcode = memory.read(pc); //first byte
 		immediate = memory.read(pc + 1); //second byte, immediate value or zpg address
@@ -187,7 +192,15 @@ class Cpu {
 		mode = opcodeAddressingMode[opcode];
 	}
 	
-	public void step() {
+	public void executeInstruction() {
+		/*
+		if(getInstructions() % 10 == 0) writeln("\n\tcycles\top\tmode\tint\topcode\timm\taddr\tpc\tsp\ta\tx\ty\tp");
+		string newDebugLine = to!string(getInstructions() + 1) ~ ": \t" ~ to!string(getCycles());
+		newDebugLine ~= "\t" ~ to!string(getOperation()) ~ "\t" ~ to!string(getMode()) ~ "\t" ~ to!string(getInterruption());
+		newDebugLine ~= format!"\t%x\t%x\t%x\t%x\t%x\t%x\t%x\t%x\t%x"(getOpcode(), getImmediate(), getAddress(), getPC(), getSP(), getA(), getX(), getY(), getP());
+		writeln(newDebugLine);
+		*/
+		
 		if(interruption != Interruption.NONE) jumpToInterruptionHandler();
 		else {
 			instructions++;
@@ -1129,7 +1142,7 @@ class Cpu {
 	
 	
 	private void jumpToInterruptionHandler() {
-		//writeln("jump to interruption handler. interruption: ", this.interruption);
+		writeln("jump to interruption handler. interruption: ", this.interruption);
 		pushStack(getPC());
 		pushStack(getP());
 		if(brkInterruption) setBreakFlag(true);
@@ -1142,7 +1155,6 @@ class Cpu {
 		}
 		else if(interruption == Interruption.RESET) {
 			setPC(memory.read16(resetAddress));
-			setSP(0xfd);//is this right?
 		}
 		setInterruptsDisabledFlag(true);
 		this.interruption = Interruption.NONE;

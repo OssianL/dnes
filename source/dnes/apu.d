@@ -1,6 +1,6 @@
 module dnes.apu;
 
-import dnes.nes;
+import dnes;
 
 class Apu {
 	

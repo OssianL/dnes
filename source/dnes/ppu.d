@@ -1,7 +1,7 @@
 module dnes.ppu;
 
-import dnes.nes;
-import derelict.sdl2.sdl;
+import dnes;
+import std.stdio;
 
 enum MirroringType {
 	HORIZONTAL,
@@ -76,7 +76,7 @@ class Ppu {
 	private bool writeToggle; //false if waiting for first byte, used for both $2005 and $2006
 	private ubyte vramDataBuffer; //
 	
-	private uint cycle = 0;
+	private uint cycles;
 	private int scanline;
 	private uint frame;
 	
@@ -99,7 +99,7 @@ class Ppu {
 		vramAddress = 0;
 		//oddFrame no ???
 		//TODO: oamRam = pattern ??? what pattern
-		cycle = 0;
+		cycles = 0;
 		scanline = preRenderScanline;
 		frame = 0;
 	}
@@ -114,7 +114,7 @@ class Ppu {
 		scrollY = 0;
 		//oddFrame no ???
 		//TODO: oamRam = pattern ??? what pattern
-		cycle = 0;
+		cycles = 0;
 		scanline = preRenderScanline;
 		frame = 0;
 	}
@@ -126,17 +126,19 @@ class Ppu {
 		else if(scanline == postRenderScanline) {
 			
 		}
-		else if(scanline == cyclesPerScanline && cycle == 0) {
+		else if(isVBlankStart()) {
 			//vBlank start
 			if(generateNmi) nes.cpu.raiseInterruption(Interruption.NMI);
+			writeln("vblank!!! generateNmi:", generateNmi);
 		}
 		else if(scanline == preRenderScanline) {
 		
 		}
 		bool renderingEnabled = showBackground || showSprites;
-		cycle++;
-		if(cycle >= cyclesPerScanline) {
-			cycle = 0;
+		//writeln("ppu cycles: ", cycles, " scanline: ", scanline);
+		cycles++;
+		if(cycles >= cyclesPerScanline) {
+			cycles = 0;
 			scanline++;
 			if(scanline > 261) {
 				scanline = 0;
@@ -145,24 +147,6 @@ class Ppu {
 		}
 		//TODO: event/odd frames cycle skip
 		
-	}
-	
-	public void debugRenderPatternTable(SDL_Renderer* renderer) {
-		for(int i = 0; i < 512; i++) {
-			int startX = (i % 16) * 8;
-			int startY = (i / 16) * 8;
-			ubyte[] pattern = getPattern(i);
-			for(int x = 0; x < 8; x++) {
-				for(int y = 0; y < 8; y++) {
-					ubyte value = (pattern[y] & (0u << (8u - x))) >> (8u - (x - 1));
-					value |= (pattern[y+8] & (0u << (8u - x))) >> (8u - x);
-					value *= 85;
-					SDL_SetRenderDrawColor(renderer, value, value, value, 255);
-					SDL_RenderDrawPoint(renderer, startX + x, startY + y);
-				}
-			}
-		}
-			
 	}
 	
 	/* $2000
@@ -351,12 +335,21 @@ class Ppu {
 		else return 0;
 	}
 	
+	public ubyte[] getPattern(int patternIndex) {
+		int start = patternIndex*16;
+		return ppuRam[start..start+16];
+	}
+	
 	public ushort getBaseNameTableAddress() {
 		if(baseNametableAddress == 0) return 0x2000;
 		else if(baseNametableAddress == 1) return 0x2400;
 		else if(baseNametableAddress == 2) return 0x2800;
 		else if(baseNametableAddress == 3) return 0x2C00;
 		else assert(false);
+	}
+	
+	public bool isVBlankStart() {
+		return scanline == vBlankStartScanline && cycles == 0;
 	}
 	
 	private ushort internalMemoryMirroring(ushort address) {
@@ -367,10 +360,6 @@ class Ppu {
 		//TODO make sure this is right!!!
 	}
 	
-	private ubyte[] getPattern(int patternIndex) {
-		int start = patternIndex*16;
-		return ppuRam[start..start+16];
-	}
 	
 	//SPRITE RAM STUFF
 	

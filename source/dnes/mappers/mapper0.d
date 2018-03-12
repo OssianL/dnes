@@ -1,6 +1,7 @@
 module dnes.mappers.mapper0;
 
-import dnes.nes;
+import dnes;
+import std.stdio;
 
 /**
 https://wiki.nesdev.com/w/index.php/INES_Mapper_000

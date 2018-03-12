@@ -1,6 +1,6 @@
 module dnes.cpumemory;
 
-import dnes.nes;
+import dnes;
 import std.stdio;
 import std.conv;
 

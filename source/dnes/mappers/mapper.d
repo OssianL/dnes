@@ -1,6 +1,6 @@
 module dnes.mappers.mapper;
 
-import dnes.nes;
+import dnes;
 import dnes.mappers.mapper0;
 
 

@@ -1,6 +1,6 @@
 module dnes.rom;
 
-import dnes.nes;
+import dnes;
 import std.file;
 import std.stdio;
 
@@ -35,6 +35,7 @@ class Rom {
 	public bool load(string fileName) {
 		ubyte[] file = cast(ubyte[]) read(fileName, 10000000);
 		ubyte[] header = file[0..16];
+
 		if(!headerIsValid(header)) return false;
 		prgBankCount = header[4];
 		chrBankCount = header[5];
@@ -82,7 +83,7 @@ class Rom {
 	private bool headerIsValid(ubyte[] header) {
 		if(header[0] != 0x4E || header[1] != 0x45 || header[2] != 0x53 || header[3] != 0x1A) return false;
 		if(header[5] == 0) return false;
-		if(header[11] != 0 || header[12] != 0 || header[13] != 0 || header[14] != 0 || header[15] != 0) return false;
+		//if(header[11] != 0 || header[12] != 0 || header[13] != 0 || header[14] != 0 || header[15] != 0) return false; //should be 0 but often aren't
 		return true;
 	}
 	
