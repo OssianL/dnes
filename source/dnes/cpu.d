@@ -136,6 +136,7 @@ class Cpu {
 	private Op operation;
 	private Mode mode;
 	private uint cycles;
+	private uint stallCycles; //cycles to stall (kind of already used cycles)
 	private uint instructions;
 	
 	private Interruption interruption = Interruption.NONE;
@@ -164,24 +165,25 @@ class Cpu {
 	
 	public void powerUp() {
 		writeln("cpu power up");
-		setP(cast(ubyte) 0x36);
-		a = 0;
-		x = 0;
-		y = 0;
-		sp = 0xfd;
-		raiseInterruption(Interruption.RESET);
+		setP(cast(ubyte) 0x24); //documentation says 0x36 but nintendulator seems to use 0x24
+		setA(0);
+		setX(0);
+		setY(0);
+		setSP(0xfd);
+		setPC(memory.read16(resetAddress));
+		loadNextInstruction();
 	}
 	
 	public void reset() {
 		writeln("cpu reset");
-		sp -= 3;
+		setSP(getSP() - 3);
 		setInterruptsDisabledFlag(true);
 		raiseInterruption(Interruption.RESET);
 	}
 	
 	public void step() {
-		loadNextInstruction();
 		executeInstruction();
+		if(!isStalling()) loadNextInstruction();
 	}
 	
 	public void loadNextInstruction() {
@@ -192,23 +194,18 @@ class Cpu {
 		mode = opcodeAddressingMode[opcode];
 	}
 	
-	public void executeInstruction() {
-		/*
-		if(getInstructions() % 10 == 0) writeln("\n\tcycles\top\tmode\tint\topcode\timm\taddr\tpc\tsp\ta\tx\ty\tp");
-		string newDebugLine = to!string(getInstructions() + 1) ~ ": \t" ~ to!string(getCycles());
-		newDebugLine ~= "\t" ~ to!string(getOperation()) ~ "\t" ~ to!string(getMode()) ~ "\t" ~ to!string(getInterruption());
-		newDebugLine ~= format!"\t%x\t%x\t%x\t%x\t%x\t%x\t%x\t%x\t%x"(getOpcode(), getImmediate(), getAddress(), getPC(), getSP(), getA(), getX(), getY(), getP());
-		writeln(newDebugLine);
-		*/
-		
-		if(interruption != Interruption.NONE) jumpToInterruptionHandler();
+	private void executeInstruction() {
+		if(isStalling()) stall();
+		else if(interruption != Interruption.NONE) jumpToInterruptionHandler();
 		else {
+			//printDebugLine();
 			instructions++;
 			addPC(getInstructionSize(mode));
 			operationDelegates[operation](mode, immediate, address);
-			addCycles(getCycleCost(opcode) + memory.getPageCrossedValue());
+			addStallCycles(getCycleCost(opcode) + memory.getPageCrossedValue());
 			memory.clearPageCrossed();
 		}
+		cycles++;
 	}
 	
 	public void setA(ubyte a) {
@@ -423,12 +420,13 @@ class Cpu {
 		this.interruption = interruption;
 	}
 	
-	public void raiseInterruption(Interruption newInterrupion) {
-		if(newInterrupion > this.interruption) {
-			if(newInterrupion == Interruption.IRQ && !getInterruptsDisabledFlag()) {
-				this.interruption = newInterrupion;
+	public void raiseInterruption(Interruption newInterruption) {
+		writeln("cpu raise interruption: ", newInterruption);
+		if(newInterruption > this.interruption) {
+			if(newInterruption == Interruption.IRQ && !getInterruptsDisabledFlag()) {
+				this.interruption = newInterruption;
 			}
-			else if(newInterrupion != Interruption.IRQ) this.interruption = newInterrupion;
+			else if(newInterruption != Interruption.IRQ) this.interruption = newInterruption;
 		}
 	}
 	
@@ -436,8 +434,25 @@ class Cpu {
 		return memory;
 	}
 
-	public void stall(int cycles) {
-		assert(false, "TODO stealCycles"); //TODO
+	public void addStallCycles(int stallCycles) {
+		this.stallCycles += stallCycles;
+	}
+	
+	public bool isStalling() {
+		return stallCycles > 0;
+	}
+	
+	private void stall() {
+		if(stallCycles <= 0) return;
+		stallCycles--;
+	}
+	
+	private void printDebugLine() {
+		if(getInstructions() % 10 == 0) writeln("\n\tcycles\top\tmode\tint\topcode\timm\taddr\tpc\tsp\ta\tx\ty\tp");
+		string newDebugLine = to!string(getInstructions() + 1) ~ ": \t" ~ to!string(getCycles());
+		newDebugLine ~= "\t" ~ to!string(getOperation()) ~ "\t" ~ to!string(getMode()) ~ "\t" ~ to!string(getInterruption());
+		newDebugLine ~= format!"\t%x\t%x\t%x\t%x\t%x\t%x\t%x\t%x\t%x"(getOpcode(), getImmediate(), getAddress(), getPC(), getSP(), getA(), getX(), getY(), getP());
+		writeln(newDebugLine);
 	}
 	
 	/*

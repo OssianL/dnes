@@ -52,15 +52,20 @@ class Nes {
 	}
 	
 	public void run() {
-		for(int i = 0; i < 300; ) {
-			if(i % 3 == 0) cpu.step();
+		for(int i = 0; i < 3000000; i++) {
+			step();
+		}
+		endUI();
+	}
+	
+	public void step() {
+		cpu.step();
+		for(int i = 0; i < 3; i++) {
 			ppu.step();
 			if(ppu.isVBlankStart()) {
 				updateUI();
-				i++;
 			}
 		}
-		endUI();
 	}
 	
 	public @property Cpu cpu() {return _cpu;}

@@ -131,7 +131,12 @@ class CpuMemory {
 			else if(address == 0x2005) nes.ppu.writeScroll(value);
 			else if(address == 0x2006) nes.ppu.writeVramAddress(value);
 			else if(address == 0x2007) nes.ppu.writeVram(value);
+			else if(address == 0x4004) writeln("TODO: implement 0x4004");
+			else if(address == 0x4005) writeln("TODO: implement 0x4005");
+			else if(address == 0x4006) writeln("TODO: implement 0x4006");
+			else if(address == 0x4007) writeln("TODO: implement 0x4007");
 			else if(address == 0x4014) directMemoryAccess(value);
+			else if(address == 0x4015) writeln("TODO: implement 0x4015");
 			else assert(false);
 		}
 		if(address >= 0x8000) nes.mapper.cpuWrite(address, value);
@@ -192,11 +197,11 @@ class CpuMemory {
 	Instructions using absolute addressing contain a full 16 bit address to identify the target location.
 	*/
 	public ubyte absRead(ushort address) {
-		return memory[address];
+		return read(address);
 	}
 	
 	public void absWrite(ushort address, ubyte value) {
-		memory[address] = value;
+		write(address, value);
 	}
 	
 	/*
@@ -295,6 +300,6 @@ class CpuMemory {
 			ubyte value = read(realAddress + i);
 			write(0x2004, value);
 		}
-		nes.cpu.stall(513 + (nes.cpu.getCycles() % 2));
+		nes.cpu.addStallCycles(513 + (nes.cpu.getCycles() % 2));
 	}
 }

@@ -19,8 +19,10 @@ class LogTester {
 	public ubyte logSP;
 	public ushort logPC;
 	
+	public string lastDebugLine;
+	
 	this(string filename) {
-		log = readText("testRoms/nestest.log").split("\n");
+		log = readText(filename).split("\n");
 	}
 	
 	public static bool test(string romFilename, string logFilename) {
@@ -34,38 +36,38 @@ class LogTester {
 	
 	public static bool test(string logFilename, Nes nes) {
 		LogTester logTester = new LogTester(logFilename);
-		Cpu cpu = nes.cpu;
-		string lastDebugLine;
-		for(int i = 0; i < 8991; i++) {
-			cpu.loadNextInstruction();
-			string newDebugLine = to!string(cpu.getInstructions() + 1) ~ ": \t" ~ to!string(cpu.getCycles());
-			newDebugLine ~= "\t" ~ to!string(cpu.getOperation()) ~ "\t" ~ to!string(cpu.getMode()) ~ "\t" ~ to!string(cpu.getInterruption());
-			newDebugLine ~= format!" \t%x\t%x\t%x\t%x\t%x\t%x\t%x\t%x\t%x"(cpu.getOpcode(), cpu.getImmediate(), cpu.getAddress(), cpu.getPC(), cpu.getSP(), cpu.getA(), cpu.getX(), cpu.getY(), cpu.getP());
-			if(!logTester.validate(cpu.getInstructions(), cpu.getPC(), cpu.getOperation(), cpu.getA(), cpu.getX(), cpu.getY(), cpu.getP(), cpu.getSP())) {
-				writeln("\n\tcycles\top\tmode\tint\topcode\timm\taddr\tpc\tsp\ta\tx\ty\tp");
-				writeln(lastDebugLine);
-				write("\033[1;31m");
-				writeln(newDebugLine);
-				write("\033[0m");
-				writefln("expected:\t%s\t\t\t\t\t\t%x\t%x\t%x\t%x\t%x\t%x", logTester.logOp, logTester.logPC, logTester.logSP, logTester.logA, logTester.logX, logTester.logY, logTester.logP);
-				return false;
-			}
-			lastDebugLine = newDebugLine;
-			cpu.executeInstruction();
+		while(nes.cpu.getInstructions() < (logTester.getLogLength() - 1)) {
+			if(!logTester.validateCpuStep(nes.cpu)) return false;
+			nes.step();
 		}
 		return true;
 	}
-
-	public bool validate(int instructionNumber, ushort pc, Op operation, ubyte a, ubyte x, ubyte y, ubyte p, ubyte sp) {
-		parseLine(instructionNumber);
-		if(pc != logPC) return false;
-		if(to!string(operation) != logOp) return false;
-		if(a != logA) return false;
-		if(x != logX) return false;
-		if(y != logY) return false;
-		if(p != logP) return false;
-		if(sp != logSP) return false;
+	
+	private bool validateCpuStep(Cpu cpu) {
+		if(cpu.isStalling() || cpu.getInterruption() != Interruption.NONE) return true;
+		string newDebugLine = buildCpuStateString(cpu);
+		if(!validateCpuState(cpu)) {
+			printDebugMessage(lastDebugLine, newDebugLine);
+			return false;
+		}
+		lastDebugLine = newDebugLine;
 		return true;
+	}
+
+	private bool validateCpuState(Cpu cpu) {
+		parseLine(cpu.getInstructions());
+		if(cpu.getPC() != logPC) return false;
+		if(to!string(cpu.getOperation()) != logOp) return false;
+		if(cpu.getA() != logA) return false;
+		if(cpu.getX() != logX) return false;
+		if(cpu.getY() != logY) return false;
+		if(cpu.getP() != logP) return false;
+		if(cpu.getSP() != logSP) return false;
+		return true;
+	}
+	
+	private ulong getLogLength() {
+		return log.length;
 	}
 	
 	private void parseLine(int lineNumber) {
@@ -79,4 +81,40 @@ class LogTester {
 		logPC = line[0..4].to!ushort(16);
 		if(logOp == "ISB") logOp = "ISC";
 	}
+	
+	private string buildCpuStateString(Cpu cpu) {
+		string newDebugLine = to!string(cpu.getInstructions() + 1) ~ ": \t" ~ to!string(cpu.getCycles());
+		newDebugLine ~= "\t" ~ to!string(cpu.getOperation()) ~ "\t" ~ to!string(cpu.getMode()) ~ "\t" ~ to!string(cpu.getInterruption());
+		newDebugLine ~= format!" \t%x\t%x\t%x\t%x\t%x\t%x\t%x\t%x\t%x"(cpu.getOpcode(), cpu.getImmediate(), cpu.getAddress(), cpu.getPC(), cpu.getSP(), cpu.getA(), cpu.getX(), cpu.getY(), cpu.getP());
+		return newDebugLine;
+	}
+	
+	private void printDebugMessage(string lastDebugLine,string newDebugLine) {
+		writeln("\n\tcycles\top\tmode\tint\topcode\timm\taddr\tpc\tsp\ta\tx\ty\tp");
+		writeln(lastDebugLine);
+		write("\033[1;31m");
+		writeln(newDebugLine);
+		write("\033[0m");
+		writefln("expected:\t%s\t\t\t\t\t\t%x\t%x\t%x\t%x\t%x\t%x", logOp, logPC, logSP, logA, logX, logY, logP);
+	}
 }
+
+
+unittest {
+	Nes nes = new Nes();
+	Cpu cpu = nes.cpu;
+	Rom rom = new Rom("testRoms/nestest.nes");
+	nes.loadRom(rom);
+	nes.powerUp();
+	cpu.setPC(0xc000);
+	cpu.loadNextInstruction();
+	cpu.setInterruption(Interruption.NONE);
+	assert(LogTester.test("testRoms/nestest.log", nes), "nestest failed");
+}
+
+/*
+unittest {
+	assert(LogTester.test("gitignore/donkeykong.nes", "testRoms/donkeykongstart.log"), "donkey kong start failed");
+}
+*/
+

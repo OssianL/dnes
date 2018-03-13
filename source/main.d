@@ -10,6 +10,7 @@ void main() {
 	loadDerelict();
     
 	Nes nes = new Nes();
+	nes.startUI();
 	Rom rom = new Rom("gitignore/donkeykong.nes");
 	nes.loadRom(rom);
 	nes.powerUp();
