@@ -56,17 +56,17 @@ class CpuMemory {
 		//io registers
 		if(address >= 0x2000 && address < 0x4020) {
 			if(address < 0x4000) address = ((address - 0x2000) % 8) + 0x2000; //mirrors $2008-$4000
-			//ppu
-			if(address == 0x2000) assert(false); //ppu control1 write only
-			else if(address == 0x2001) assert(false); //ppu control2 write only
-			else if(address == 0x2002) return nes.ppu.readStatusRegister(); //ppu status read only
-			else if(address == 0x2003) assert(false); //ppu setSprAddress() write only
-			else if(address == 0x2004) return nes.ppu.readOamData();
-			else if(address == 0x2005) assert(false); //ppu setScroll() write only
-			else if(address == 0x2006) assert(false); //ppu setVramAddress() write only
-			else if(address == 0x2007) return nes.ppu.readVram();
-			else if(address == 0x4014) assert(false); //direct memory access, write only(?)
-			else assert(false);
+			switch(address) {
+				case 0x2000: assert(false); //ppu control1 write only
+				case 0x2001: assert(false); //ppu control2 write only
+				case 0x2002: return nes.ppu.readStatusRegister(); //ppu status read only
+				case 0x2003: assert(false); //ppu setSprAddress() write only
+				case 0x2004: return nes.ppu.readOamData();
+				case 0x2005: assert(false); //ppu setScroll() write only
+				case 0x2006: assert(false); //ppu setVramAddress() write only
+				case 0x2007: return nes.ppu.readVram();
+				default: assert(false, "unimplemented io register read: " ~ to!string(address, 16));
+			}
 		}
 		else if(address >= 0x8000) return nes.mapper.cpuRead(address);
 		else return memory[address]; //normal memory read
@@ -114,7 +114,7 @@ class CpuMemory {
 			return inyWrite(immediate, value);
 		}
 		else {
-			assert(false, "memory write mode not implemented, call the police");
+			assert(false, "memory write mode not implemented");
 		}
 	}
 	
@@ -122,22 +122,41 @@ class CpuMemory {
 		//io registers
 		if(address >= 0x2000 && address < 0x4020) {
 			if(address < 0x4000) address = ((address - 0x2000) % 8) + 0x2000; //mirrors $2008-$4000
-			//ppu
-			if(address == 0x2000) nes.ppu.writeControlRegister(value);
-			else if(address == 0x2001) nes.ppu.writeMaskRegister(value);
-			else if(address == 0x2002) assert(false); //ppu status read only
-			else if(address == 0x2003) nes.ppu.writeOamAddress(value);
-			else if(address == 0x2004) nes.ppu.writeOamData(value);
-			else if(address == 0x2005) nes.ppu.writeScroll(value);
-			else if(address == 0x2006) nes.ppu.writeVramAddress(value);
-			else if(address == 0x2007) nes.ppu.writeVram(value);
-			else if(address == 0x4004) writeln("TODO: implement 0x4004");
-			else if(address == 0x4005) writeln("TODO: implement 0x4005");
-			else if(address == 0x4006) writeln("TODO: implement 0x4006");
-			else if(address == 0x4007) writeln("TODO: implement 0x4007");
-			else if(address == 0x4014) directMemoryAccess(value);
-			else if(address == 0x4015) writeln("TODO: implement 0x4015");
-			else assert(false);
+			switch(address) {
+				case 0x2000: return nes.ppu.writeControlRegister(value);
+				case 0x2001: return nes.ppu.writeMaskRegister(value);
+				case 0x2002: assert(false); //ppu status read only
+				case 0x2003: return nes.ppu.writeOamAddress(value);
+				case 0x2004: return nes.ppu.writeOamData(value);
+				case 0x2005: return nes.ppu.writeScroll(value);
+				case 0x2006: return nes.ppu.writeVramAddress(value);
+				case 0x2007: return nes.ppu.writeVram(value);
+				case 0x4000: return nes.apu.writePulse1Register1(value);
+				case 0x4001: return nes.apu.writePulse1Register2(value);
+				case 0x4002: return nes.apu.writePulse1Register3(value);
+				case 0x4003: return nes.apu.writePulse1Register4(value);
+				case 0x4004: return nes.apu.writePulse2Register1(value);
+				case 0x4005: return nes.apu.writePulse2Register2(value);
+				case 0x4006: return nes.apu.writePulse2Register3(value);
+				case 0x4007: return nes.apu.writePulse2Register4(value);
+				case 0x4008: return nes.apu.writeTriangleRegister1(value);
+				case 0x4009: assert(false, "unused io register write" ~ to!string(address, 16));
+				case 0x400a: return nes.apu.writeTriangleRegister2(value);
+				case 0x400b: return nes.apu.writeTriangleRegister3(value);
+				case 0x400c: return nes.apu.writeNoiseRegister1(value);
+				case 0x400d: assert(false, "unused io register write" ~ to!string(address, 16));
+				case 0x400e: return nes.apu.writeNoiseRegister2(value);
+				case 0x400f: return nes.apu.writeNoiseRegister3(value);
+				case 0x4010: return nes.apu.writeDmcRegister1(value);
+				case 0x4011: return nes.apu.writeDmcRegister2(value);
+				case 0x4012: return nes.apu.writeDmcRegister3(value);
+				case 0x4013: return nes.apu.writeDmcRegister4(value);
+				case 0x4014: return directMemoryAccess(value);
+				case 0x4015: return nes.apu.writeStatusRegister(value);
+				case 0x4016: return nes.controller1.write(value);
+				case 0x4017: return nes.controller2.write(value);
+				default: assert(false, "unimplemented write io register: " ~ to!string(address, 16));
+			}
 		}
 		if(address >= 0x8000) nes.mapper.cpuWrite(address, value);
 		else memory[address] = value; //normal memory write
