@@ -198,7 +198,7 @@ class Cpu {
 		if(isStalling()) stall();
 		else if(interruption != Interruption.NONE) jumpToInterruptionHandler();
 		else {
-			//printDebugLine();
+			printDebugLine();
 			instructions++;
 			addPC(getInstructionSize(mode));
 			operationDelegates[operation](mode, immediate, address);

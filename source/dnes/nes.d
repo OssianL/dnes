@@ -16,6 +16,8 @@ class Nes {
 	private Apu _apu;
 	private Rom _rom;
 	private Mapper _mapper;
+	private Controller _controller1;
+	private Controller _controller2;
 	
 	private bool uiActive;
 	private SDL_Window* patternTableWindow;
@@ -69,11 +71,13 @@ class Nes {
 	}
 	
 	public @property Cpu cpu() {return _cpu;}
+	public @property CpuMemory cpuMemory() {return _cpu.getMemory();}
 	public @property Ppu ppu() {return _ppu;}
 	public @property Apu apu() {return _apu;}
 	public @property Rom rom() {return _rom;}
 	public @property Mapper mapper() {return _mapper;}
-	public @property CpuMemory cpuMemory() {return _cpu.getMemory();}
+	public @property Controller controller1() {return _controller1;}
+	public @property Controller controller2() {return _controller2;}
 	
 	private void initSdl() {
 		if(SDL_Init(SDL_INIT_VIDEO) != 0) assert(false, "sdl init fail!");

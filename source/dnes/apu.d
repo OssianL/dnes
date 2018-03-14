@@ -27,4 +27,93 @@ class Apu {
 		APU was silenced ($4015 = 0)
 		*/
 	}
+	
+	public void step() {
+	
+	}
+	
+	public void writePulse1Register1(ubyte value) {
+		
+	}
+	
+	public void writePulse1Register2(ubyte value) {
+		
+	}
+	
+	public void writePulse1Register3(ubyte value) {
+		
+	}
+	
+	public void writePulse1Register4(ubyte value) {
+		
+	}
+	
+	public void writePulse2Register1(ubyte value) {
+		
+	}
+	
+	public void writePulse2Register2(ubyte value) {
+		
+	}
+	
+	public void writePulse2Register3(ubyte value) {
+		
+	}
+	
+	public void writePulse2Register4(ubyte value) {
+		
+	}
+	
+	public void writeTriangleRegister1(ubyte value) {
+		
+	}
+	
+	public void writeTriangleRegister2(ubyte value) {
+		
+	}
+	
+	public void writeTriangleRegister3(ubyte value) {
+		
+	}
+	
+	public void writeNoiseRegister1(ubyte value) {
+		
+	}
+	
+	public void writeNoiseRegister2(ubyte value) {
+		
+	}
+	
+	public void writeNoiseRegister3(ubyte value) {
+		
+	}
+	
+	public void writeDmcRegister1(ubyte value) {
+		
+	}
+	
+	public void writeDmcRegister2(ubyte value) {
+		
+	}
+	
+	public void writeDmcRegister3(ubyte value) {
+		
+	}
+	
+	public void writeDmcRegister4(ubyte value) {
+		
+	}
+	
+	public void writeStatusRegister(ubyte value) {
+	
+	}
+	
+	public ubyte readStatusRegister() {
+		return 0;
+	}
+	
+	public void writeFrameCounter(ubyte value) {
+	
+	}
+	
 }

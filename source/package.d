@@ -6,4 +6,5 @@ public import dnes.cpumemory;
 public import dnes.ppu;
 public import dnes.apu;
 public import dnes.rom;
+public import dnes.controller;
 public import dnes.mappers.mapper;
