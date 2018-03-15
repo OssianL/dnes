@@ -55,7 +55,8 @@ class Mapper0 : Mapper {
 	}
 	
 	public ubyte chrRead(ushort address) {
-		assert(false);
+		//writefln("mapper read chr address: %x value: %x", address, rom.chrBanks[0][address]);
+		return rom.chrBanks[0][address];
 	}
 	
 	public void chrWrite(ushort address, ubyte value) {
@@ -63,7 +64,7 @@ class Mapper0 : Mapper {
 	}
 	
 	public bool useChrRom(ushort address) {
-		return false;
+		return rom.chrBanks.length > 0 && address < 0x2000;
 	}
 	
 }

@@ -21,13 +21,14 @@ class Nes {
 	
 	private bool uiActive;
 	private SDL_Window* patternTableWindow;
-	private SDL_Surface* patterTablesurface;
 	private SDL_Renderer* patternTableRenderer;
 	
 	this() {
 		_cpu = new Cpu(this);
 		_ppu = new Ppu(this);
 		_apu = new Apu(this);
+		_controller1 = new Controller();
+		_controller2 = new Controller();
 	}
 	
 	public void startUI() {
@@ -54,7 +55,7 @@ class Nes {
 	}
 	
 	public void run() {
-		for(int i = 0; i < 3000000; i++) {
+		for(int i = 0; i < 50000; i++) {
 			step();
 		}
 		endUI();
@@ -81,19 +82,21 @@ class Nes {
 	
 	private void initSdl() {
 		if(SDL_Init(SDL_INIT_VIDEO) != 0) assert(false, "sdl init fail!");
-		patternTableWindow = SDL_CreateWindow("Pattern Table Debug", 500, 500, 128, 256, SDL_WINDOW_SHOWN);
+		patternTableWindow = SDL_CreateWindow("Pattern Table Debug", 500, 500, 128, 256, 0);
 		if(patternTableWindow == null) {
 			writeln("sdl window fail!");
 			SDL_Quit();
 		}
-		patterTablesurface = SDL_GetWindowSurface(patternTableWindow);
 		patternTableRenderer = SDL_CreateRenderer(patternTableWindow, -1, SDL_RENDERER_ACCELERATED); 
 	}
 	
 	private void updateUI() {
 		if(!uiActive) return;
+		SDL_SetRenderDrawColor(patternTableRenderer, 255, 100, 0, 255);
+		SDL_RenderClear(patternTableRenderer);
 		renderDebugPatternTable(patternTableRenderer, ppu);
-		SDL_Delay(15);
+		SDL_RenderPresent(patternTableRenderer);
+		SDL_Delay(5000);
 	}
 	
 	private void endUI() {
@@ -106,11 +109,17 @@ class Nes {
 		for(int i = 0; i < 512; i++) {
 			int startX = (i % 16) * 8;
 			int startY = (i / 16) * 8;
-			ubyte[] pattern = ppu.getPattern(i);
-			for(int x = 0; x < 8; x++) {
-				for(int y = 0; y < 8; y++) {
-					ubyte value = (pattern[y] & (0u << (8u - x))) >> (8u - (x - 1));
-					value |= (pattern[y+8] & (0u << (8u - x))) >> (8u - x);
+			int patternStart = i*16;
+			for(int y = 0; y < 8; y++) {
+				ushort byte1Address = cast(ushort) (patternStart+y);
+				ushort byte2Address = cast(ushort) (byte1Address+8);
+				ubyte byte1 = ppu.readVram(byte1Address);
+				ubyte byte2 = ppu.readVram(byte2Address);
+				for(int x = 8; x >= 0; x--) {
+					ubyte value = byte1 & 1; //bit 0
+					byte1 >>= 1;
+					value |= (byte2 & 1) << 1; //bit 1
+					byte2 >>= 1;
 					value *= 85;
 					SDL_SetRenderDrawColor(renderer, value, value, value, 255);
 					SDL_RenderDrawPoint(renderer, startX + x, startY + y);

@@ -128,7 +128,7 @@ class Ppu {
 			//vBlank start
 			vBlankStarted = true;
 			if(generateNmi) nes.cpu.raiseInterruption(Interruption.NMI);
-			writeln("vblank!!! generateNmi:", generateNmi);
+			writeln("vblank frame: ", frame);
 		}
 		else if(scanline == preRenderScanline) {
 			if(cycles == 0) vBlankStarted = false;
@@ -160,7 +160,7 @@ class Ppu {
 	+-------- generateNmi
 	*/
 	public void writeControlRegister(ubyte value) {
-		writefln("ppu control mask: %x", value);
+		//writefln("ppu control mask: %x", value);
 		baseNametableAddress 			= value & 0b00000011;
 		vramAddressIncrement			= (value & 0b00000100) != 0;
 		spritePatternTableAddress		= (value & 0b00001000) != 0;
@@ -168,7 +168,6 @@ class Ppu {
 		spriteSize						= (value & 0b00100000) != 0;
 		ppuMasterSlave					= (value & 0b01000000) != 0;
 		generateNmi						= (value & 0b10000000) != 0;
-		if(generateNmi) writeln("generateNmi: true");
 		lastWriteToPpuRegister = value;
 	}
 	
@@ -277,6 +276,7 @@ class Ppu {
 		}
 		else {
 			tempVramAddress += part;
+			tempVramAddress %= 0x4000; //Valid addresses are $0000-$3FFF; higher addresses will be mirrored down.
 			vramAddress = tempVramAddress;
 			writeToggle = false;
 		}
@@ -315,6 +315,7 @@ class Ppu {
 	public void writeVram(ushort address, ubyte value) {
 		if(nes.mapper.useChrRom(address)) nes.mapper.chrWrite(address, value);//can write to chrRom?
 		else ppuRam[internalMemoryMirroring(address)] = value;
+		//writefln("ppu writeVram address: %x value: %x rom?: %s", address, value, nes.mapper.useChrRom(address));
 	}
 	
 	/*
@@ -338,10 +339,11 @@ class Ppu {
 		else return 0;
 	}
 	
+	/*
 	public ubyte[] getPattern(int patternIndex) {
 		int start = patternIndex*16;
 		return ppuRam[start..start+16];
-	}
+	}*/
 	
 	public ushort getBaseNameTableAddress() {
 		if(baseNametableAddress == 0) return 0x2000;

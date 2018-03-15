@@ -198,7 +198,7 @@ class Cpu {
 		if(isStalling()) stall();
 		else if(interruption != Interruption.NONE) jumpToInterruptionHandler();
 		else {
-			printDebugLine();
+			//printDebugLine();
 			instructions++;
 			addPC(getInstructionSize(mode));
 			operationDelegates[operation](mode, immediate, address);
@@ -421,7 +421,7 @@ class Cpu {
 	}
 	
 	public void raiseInterruption(Interruption newInterruption) {
-		writeln("cpu raise interruption: ", newInterruption);
+		//writeln("cpu raise interruption: ", newInterruption);
 		if(newInterruption > this.interruption) {
 			if(newInterruption == Interruption.IRQ && !getInterruptsDisabledFlag()) {
 				this.interruption = newInterruption;
@@ -1157,7 +1157,7 @@ class Cpu {
 	
 	
 	private void jumpToInterruptionHandler() {
-		writeln("jump to interruption handler. interruption: ", this.interruption);
+		//writeln("jump to interruption handler. interruption: ", this.interruption);
 		pushStack(getPC());
 		pushStack(getP());
 		if(brkInterruption) setBreakFlag(true);

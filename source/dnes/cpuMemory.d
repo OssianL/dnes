@@ -57,14 +57,12 @@ class CpuMemory {
 		if(address >= 0x2000 && address < 0x4020) {
 			if(address < 0x4000) address = ((address - 0x2000) % 8) + 0x2000; //mirrors $2008-$4000
 			switch(address) {
-				case 0x2000: assert(false); //ppu control1 write only
-				case 0x2001: assert(false); //ppu control2 write only
-				case 0x2002: return nes.ppu.readStatusRegister(); //ppu status read only
-				case 0x2003: assert(false); //ppu setSprAddress() write only
+				case 0x2002: return nes.ppu.readStatusRegister();
 				case 0x2004: return nes.ppu.readOamData();
-				case 0x2005: assert(false); //ppu setScroll() write only
-				case 0x2006: assert(false); //ppu setVramAddress() write only
 				case 0x2007: return nes.ppu.readVram();
+				case 0x4015: return nes.apu.readStatusRegister();
+				case 0x4016: return nes.controller1.read();
+				case 0x4017: return nes.controller2.read();
 				default: assert(false, "unimplemented io register read: " ~ to!string(address, 16));
 			}
 		}
@@ -125,7 +123,6 @@ class CpuMemory {
 			switch(address) {
 				case 0x2000: return nes.ppu.writeControlRegister(value);
 				case 0x2001: return nes.ppu.writeMaskRegister(value);
-				case 0x2002: assert(false); //ppu status read only
 				case 0x2003: return nes.ppu.writeOamAddress(value);
 				case 0x2004: return nes.ppu.writeOamData(value);
 				case 0x2005: return nes.ppu.writeScroll(value);
@@ -140,11 +137,9 @@ class CpuMemory {
 				case 0x4006: return nes.apu.writePulse2Register3(value);
 				case 0x4007: return nes.apu.writePulse2Register4(value);
 				case 0x4008: return nes.apu.writeTriangleRegister1(value);
-				case 0x4009: assert(false, "unused io register write" ~ to!string(address, 16));
 				case 0x400a: return nes.apu.writeTriangleRegister2(value);
 				case 0x400b: return nes.apu.writeTriangleRegister3(value);
 				case 0x400c: return nes.apu.writeNoiseRegister1(value);
-				case 0x400d: assert(false, "unused io register write" ~ to!string(address, 16));
 				case 0x400e: return nes.apu.writeNoiseRegister2(value);
 				case 0x400f: return nes.apu.writeNoiseRegister3(value);
 				case 0x4010: return nes.apu.writeDmcRegister1(value);
