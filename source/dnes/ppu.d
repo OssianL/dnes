@@ -9,7 +9,7 @@ enum MirroringType {
 	FOUR_SCREEN
 }
 
-const int[64] colorPalette = [
+const uint[64] colorPalette = [
 	0x7C7C7C, 0x0000FC, 0x0000BC, 0x4428BC, 0x940084, 0xA80020, 0xA81000, 0x881400, 0x503000, 0x007800,
 	0x006800, 0x005800, 0x004058, 0x000000, 0x000000, 0x000000, 0xBCBCBC, 0x0078F8, 0x0058F8, 0x6844FC,
 	0xD800CC, 0xE40058, 0xF83800, 0xE45C10, 0xAC7C00, 0x00B800, 0x00A800, 0x00A844, 0x008888, 0x000000,
@@ -37,6 +37,9 @@ class Ppu {
 	enum postRenderScanline = 240;
 	enum vBlankStartScanline = 241;
 	enum preRenderScanline = 261;
+	
+	enum tilesPerTable = 32 * 30;
+	enum nameTableSize = 0x3c0;
 	
 	private ubyte[0x3FFF] ppuRam;
 	private ubyte[256] oamRam;
@@ -300,6 +303,7 @@ class Ppu {
 	}
 	
 	public ubyte readVram(ushort address) {
+		//TODO: Addresses $3F10/$3F14/$3F18/$3F1C are mirrors of $3F00/$3F04/$3F08/$3F0C
 		if(nes.mapper.useChrRom(address)) return nes.mapper.chrRead(address); //use chrRom or don't
 		return ppuRam[internalMemoryMirroring(address)];
 	}
@@ -313,6 +317,7 @@ class Ppu {
 	}
 	
 	public void writeVram(ushort address, ubyte value) {
+		//TODO: Addresses $3F10/$3F14/$3F18/$3F1C are mirrors of $3F00/$3F04/$3F08/$3F0C
 		if(nes.mapper.useChrRom(address)) nes.mapper.chrWrite(address, value);//can write to chrRom?
 		else ppuRam[internalMemoryMirroring(address)] = value;
 		//writefln("ppu writeVram address: %x value: %x rom?: %s", address, value, nes.mapper.useChrRom(address));
@@ -345,12 +350,52 @@ class Ppu {
 		return ppuRam[start..start+16];
 	}*/
 	
+	//return the 2 most significant bit for pattern palette indexes
+	public ubyte getTileAttributeValue(uint index) {
+		ushort attributeTableAddress = getAttributeTableAddress(index / tilesPerTable);
+		index %= tilesPerTable;
+		int tileX = index % 32;
+		int tileY = index / 32;
+		int tileGroupX = tileX / 8;
+		int tileGroupY = tileY / 8;
+		int tileGroupIndex = tileGroupY * 8 + tileGroupX;
+		int squareX = tileX % 2;
+		int squareY = tileY % 2;
+		int squareIndex = squareY * 2 + squareX; //0-3
+		return cast(ubyte) ((readVram(cast(ushort) (attributeTableAddress+tileGroupIndex)) >> (squareIndex * 2)) << 2);
+	}
+	
+	public int getTilePatternIndex(uint tileIndex) {
+		int nameTableIndex = tileIndex / tilesPerTable;
+		tileIndex %= tilesPerTable;
+		ushort tileAddress = cast(ushort) (getNameTableAddress(nameTableIndex) + tileIndex);
+		int patternIndex = readVram(tileAddress);
+		if(backgroundPatternTableAddress) patternIndex += 256;
+		return patternIndex;
+	}
+	
 	public ushort getBaseNameTableAddress() {
-		if(baseNametableAddress == 0) return 0x2000;
-		else if(baseNametableAddress == 1) return 0x2400;
-		else if(baseNametableAddress == 2) return 0x2800;
-		else if(baseNametableAddress == 3) return 0x2C00;
+		return getNameTableAddress(baseNametableAddress);
+	}
+	
+	public ushort getNameTableAddress(uint index) {
+		if(index == 0) return 0x2000;
+		else if(index == 1) return 0x2400;
+		else if(index == 2) return 0x2800;
+		else if(index == 3) return 0x2C00;
 		else assert(false);
+	}
+	
+	public ushort getAttributeTableAddress(uint index) {
+		return cast(ushort) (getNameTableAddress(index) + nameTableSize);
+	}
+	
+	public uint getColor(ubyte pixelValue, ubyte attributeValue, bool sprite) {
+		ubyte paletteIndexAddress = pixelValue | attributeValue;
+		if(sprite) paletteIndexAddress |= 0b00010000;
+		ubyte paletteIndex = readVram(cast(ushort) (backgroundColorAddress+paletteIndexAddress));
+		//writefln("address: %b index: %x color: %x", backgroundColorAddress+paletteIndexAddress, paletteIndex, colorPalette[paletteIndex]);
+		return colorPalette[paletteIndex];
 	}
 	
 	public bool isVBlankStart() {
