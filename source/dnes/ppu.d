@@ -4,9 +4,9 @@ import dnes;
 import std.stdio;
 
 enum MirroringType {
-	HORIZONTAL,
-	VERTICAL,
-	FOUR_SCREEN
+	horizontal,
+	vertical,
+	fourScreen
 }
 
 const uint[64] colorPalette = [
@@ -45,6 +45,7 @@ class Ppu {
 	private ubyte[256] oamRam;
 	private ubyte[32] secondarySpriteRam;
 	private Nes nes;
+	private MirroringType mirroringType;
 	
 	//controllerRegister $2000
 	private ubyte baseNametableAddress; //Base nametable address (0 = $2000; 1 = $2400; 2 = $2800; 3 = $2C00)
@@ -88,6 +89,7 @@ class Ppu {
 	}
 	
 	public void powerUp() {
+		mirroringType = nes.rom.getMirroringType();
 		writeControlRegister(0);
 		writeMaskRegister(0);
 		sprite0Hit = false;
@@ -291,7 +293,7 @@ class Ppu {
 		//TODO: do some memory mirroring?
 		if(vramAddress >= 0x3f00 && vramAddress <= 0x3fff) {
 			value = readVram(vramAddress);
-			vramDataBuffer = readVram(cast(ushort) (vramAddress - 0x2000u)); //is this right? unclear specs
+			vramDataBuffer = readVram(cast(ushort) (vramAddress - 0x2000)); //is this right? unclear specs
 		}
 		else {
 			value = vramDataBuffer;
@@ -304,6 +306,7 @@ class Ppu {
 	
 	public ubyte readVram(ushort address) {
 		//TODO: Addresses $3F10/$3F14/$3F18/$3F1C are mirrors of $3F00/$3F04/$3F08/$3F0C
+		//dif(internalMemoryMirroring(address) >= 0x3000 && address < 0x3f00) writefln("writeVram address: %x value: %x", address, value); 
 		if(nes.mapper.useChrRom(address)) return nes.mapper.chrRead(address); //use chrRom or don't
 		return ppuRam[internalMemoryMirroring(address)];
 	}
@@ -318,6 +321,7 @@ class Ppu {
 	
 	public void writeVram(ushort address, ubyte value) {
 		//TODO: Addresses $3F10/$3F14/$3F18/$3F1C are mirrors of $3F00/$3F04/$3F08/$3F0C
+		//if(internalMemoryMirroring(address) >= 0x3000 && address < 0x3f00) writefln("writeVram address: %x value: %x", address, value); 
 		if(nes.mapper.useChrRom(address)) nes.mapper.chrWrite(address, value);//can write to chrRom?
 		else ppuRam[internalMemoryMirroring(address)] = value;
 		//writefln("ppu writeVram address: %x value: %x rom?: %s", address, value, nes.mapper.useChrRom(address));
@@ -359,10 +363,13 @@ class Ppu {
 		int tileGroupX = tileX / 8;
 		int tileGroupY = tileY / 8;
 		int tileGroupIndex = tileGroupY * 8 + tileGroupX;
-		int squareX = tileX % 2;
-		int squareY = tileY % 2;
+		int squareX = tileX / 2;
+		int squareY = tileY / 2;
 		int squareIndex = squareY * 2 + squareX; //0-3
-		return cast(ubyte) ((readVram(cast(ushort) (attributeTableAddress+tileGroupIndex)) >> (squareIndex * 2)) << 2);
+		ubyte tileGroup = readVram(cast(ushort) (attributeTableAddress+tileGroupIndex));
+		//writefln("attributeTableAddress: %x attributeTableAddress+tileGroupIndex: %x", attributeTableAddress, attributeTableAddress+tileGroupIndex);
+		//writefln("tileIndex: %x tileX: %x tileY: %x tileGroupX: %x tileGroupY %x tileGroupIndex: %x squareX: %x squareY: %x squareIndex: %x tileGroup: %x", index, tileX, tileY, tileGroupX, tileGroupY, tileGroupIndex, squareX, squareY, squareIndex, tileGroup);
+		return cast(ubyte) ((tileGroup >> (squareIndex * 2)) << 2);
 	}
 	
 	public int getTilePatternIndex(uint tileIndex) {
@@ -404,8 +411,19 @@ class Ppu {
 	
 	private ushort internalMemoryMirroring(ushort address) {
 		address %= 0x3FFF; //$4000-$10000 mirrors $0000-$3fff
-		if(address >= 0x3000 && address < 0x3f00) address -= 0x2000; //$3000-$3eff mirrors $2000-$2eff
-		else if(address >= 0x3f20 && address < 0x4000) address -= 0x20; //$3f20-$3fff mirrors $3f00-$3f1f
+		if(address >= 0x3000 && address < 0x3f00) address -= 0x1000; //$3000-$3eff mirrors $2000-$2eff
+		else if(address >= 0x3f20 && address < 0x4000) address = 0x3f00 + ((address - 0x3f20) % 0x20); //$3f20-$3fff mirrors $3f00-$3f1f
+		//name table mirroring
+		if(address >= 0x2400 && address < 0x2800 && mirroringType == MirroringType.horizontal)
+			address = cast(ushort) (address - 0x400);
+		else if(address >= 0x2800 && address < 0x2c00 && mirroringType == MirroringType.vertical)
+			address = cast(ushort) (address - 0x800);
+		else if(address >= 0x2c00 && address < 0x3000) {
+			if(mirroringType == MirroringType.horizontal)
+				address = cast(ushort) (address - 0x400);
+			else if(mirroringType == MirroringType.vertical)
+				address = cast(ushort) (address - 0x800);
+		}
 		return address;
 		//TODO make sure this is right!!!
 	}

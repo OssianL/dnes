@@ -41,7 +41,7 @@ class Nes {
 	public void loadRom(Rom rom) {
 		_rom = rom;
 		_mapper = Mapper.createMapper(this, rom);
-		writeln("rom loaded! mapperNumber: ", _rom.getMapperNumber());
+		writeln("rom loaded! mapperNumber: ", _rom.getMapperNumber(), " mirroring: ", rom.getMirroringType());
 	}
 	
 	public void powerUp() {
@@ -57,7 +57,7 @@ class Nes {
 	}
 	
 	public void run() {
-		for(int i = 0; i < 10000000; i++) {
+		for(int i = 0; i < 4000000; i++) {
 			step();
 		}
 		endUI();
@@ -130,8 +130,10 @@ class Nes {
 			for(int tile = 0; tile < ppu.tilesPerTable; tile++) {
 				int y = (tile / 32) * 8;
 				int x = (((tile % 32) * 8) + (nt * 32 * 8));
-				int patternIndex = ppu.getTilePatternIndex(tile * nt);
-				ubyte attributeValue = ppu.getTileAttributeValue(tile * nt);
+				int tileIndex = tile + (nt * ppu.tilesPerTable);
+				int patternIndex = ppu.getTilePatternIndex(tileIndex);
+				ubyte attributeValue = ppu.getTileAttributeValue(tileIndex);
+				//writefln("attributeValue: %x", attributeValue);
 				renderPattern(nameTableRenderer, x, y, patternIndex, attributeValue);
 			}
 		}

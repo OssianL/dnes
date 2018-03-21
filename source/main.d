@@ -8,7 +8,6 @@ import derelict.sdl2.ttf;
 
 void main() {
 	loadDerelict();
-    
 	Nes nes = new Nes();
 	nes.startUI();
 	Rom rom = new Rom("gitignore/donkeykong.nes");

@@ -80,6 +80,10 @@ class Rom {
 		return mapperNumber;
 	}
 	
+	public MirroringType getMirroringType() {
+		return mirroringType;
+	}
+	
 	private bool headerIsValid(ubyte[] header) {
 		if(header[0] != 0x4E || header[1] != 0x45 || header[2] != 0x53 || header[3] != 0x1A) return false;
 		if(header[5] == 0) return false;
@@ -89,9 +93,9 @@ class Rom {
 	
 	private void setMirroringType(ubyte header6) {
 		header6 &= 0b00001001;
-		if(header6 == 0) mirroringType = MirroringType.HORIZONTAL;
-		else if(header6 == 1) mirroringType = MirroringType.VERTICAL;
-		else if(header6 == 0b1001) mirroringType = MirroringType.FOUR_SCREEN;
+		if(header6 == 0) mirroringType = MirroringType.horizontal;
+		else if(header6 == 1) mirroringType = MirroringType.vertical;
+		else if(header6 == 0b1001) mirroringType = MirroringType.fourScreen;
 		else assert(false);
 	}
 	
