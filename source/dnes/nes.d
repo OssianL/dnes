@@ -24,6 +24,8 @@ class Nes {
 	private SDL_Renderer* patternTableRenderer;
 	private SDL_Window* nameTableWindow;
 	private SDL_Renderer* nameTableRenderer;
+	private SDL_Window* paletteWindow;
+	private SDL_Renderer* paletteRenderer;
 	
 	this() {
 		_cpu = new Cpu(this);
@@ -96,36 +98,44 @@ class Nes {
 			SDL_Quit();
 		}
 		nameTableRenderer = SDL_CreateRenderer(nameTableWindow, -1, SDL_RENDERER_ACCELERATED);
+		paletteWindow = SDL_CreateWindow("Palette Debug", 700, 800, 4*16, 16*16, 0);
+		if(paletteWindow == null) {
+			writeln("paletteWindow fail!");
+			SDL_Quit();
+		}
+		paletteRenderer = SDL_CreateRenderer(paletteWindow, -1, SDL_RENDERER_ACCELERATED);
 	}
 	
 	private void updateUI() {
 		if(!uiActive) return;
-		SDL_SetRenderDrawColor(patternTableRenderer, 0, 0, 0, 255);
-		SDL_RenderClear(patternTableRenderer);
-		SDL_SetRenderDrawColor(nameTableRenderer, 0, 0, 0, 255);
-		SDL_RenderClear(nameTableRenderer);
 		renderDebugPatternTable();
 		renderDebugNameTable();
-		SDL_RenderPresent(patternTableRenderer);
-		SDL_RenderPresent(nameTableRenderer);
+		renderDebugPalette();
 		//SDL_Delay();
 	}
 	
 	private void endUI() {
 		if(!uiActive) return;
 		SDL_DestroyWindow(patternTableWindow);
+		SDL_DestroyWindow(nameTableWindow);
+		SDL_DestroyWindow(paletteWindow);
 		SDL_Quit();
 	}
 	
 	private void renderDebugPatternTable() {
+		SDL_SetRenderDrawColor(patternTableRenderer, 0, 0, 0, 255);
+		SDL_RenderClear(patternTableRenderer);
 		for(int i = 0; i < 512; i++) {
 			int x = (i % 16) * 8;
 			int y = (i / 16) * 8;
 			renderPattern(patternTableRenderer, x, y, i, 0);
 		}
+		SDL_RenderPresent(patternTableRenderer);
 	}
 	
 	private void renderDebugNameTable() {
+		SDL_SetRenderDrawColor(nameTableRenderer, 0, 0, 0, 255);
+		SDL_RenderClear(nameTableRenderer);
 		for(int nt = 0; nt < 4; nt++) {
 			for(int tile = 0; tile < ppu.tilesPerTable; tile++) {
 				int y = (tile / 32) * 8;
@@ -137,8 +147,28 @@ class Nes {
 				renderPattern(nameTableRenderer, x, y, patternIndex, attributeValue);
 			}
 		}
+		SDL_RenderPresent(nameTableRenderer);
 	}
 	
+	private void renderDebugPalette() {
+		SDL_SetRenderDrawColor(paletteRenderer, 0, 0, 0, 255);
+		SDL_RenderClear(paletteRenderer);
+		SDL_Rect rect;
+		rect.w = 16;
+		rect.h = 16;
+		for(int i = 0; i < 64; i++) {
+			rect.x = (i % 4) * 16;
+			rect.y = (i / 4) * 16;
+			uint color = ppu.getColor(i);
+			ubyte r = cast(ubyte) (color >> 16);
+			ubyte g = cast(ubyte) (color >> 8);
+			ubyte b = cast(ubyte) color;
+			SDL_SetRenderDrawColor(paletteRenderer, r, g, b, 255);
+			SDL_RenderFillRect(paletteRenderer, &rect);
+		}
+		SDL_RenderPresent(paletteRenderer);
+	}
+
 	private void renderPattern(SDL_Renderer* renderer, int pointX, int pointY, int patternIndex, ubyte attributeValue) {
 		int patternStart = patternIndex*16;
 		for(int y = 0; y < 8; y++) {
@@ -162,7 +192,6 @@ class Nes {
 			}
 		}
 	}
-	
 }
 
 

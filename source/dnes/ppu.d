@@ -360,9 +360,9 @@ class Ppu {
 		index %= tilesPerTable;
 		int tileX = index % 32;
 		int tileY = index / 32;
-		int tileGroupX = tileX / 8;
-		int tileGroupY = tileY / 8;
-		int tileGroupIndex = tileGroupY * 8 + tileGroupX;
+		int tileGroupX = tileX / 4;
+		int tileGroupY = tileY / 4;
+		int tileGroupIndex = tileGroupY * 4 + tileGroupX;
 		int squareX = tileX / 2;
 		int squareY = tileY / 2;
 		int squareIndex = squareY * 2 + squareX; //0-3
@@ -400,8 +400,11 @@ class Ppu {
 	public uint getColor(ubyte pixelValue, ubyte attributeValue, bool sprite) {
 		ubyte paletteIndexAddress = pixelValue | attributeValue;
 		if(sprite) paletteIndexAddress |= 0b00010000;
-		ubyte paletteIndex = readVram(cast(ushort) (backgroundColorAddress+paletteIndexAddress));
-		//writefln("address: %b index: %x color: %x", backgroundColorAddress+paletteIndexAddress, paletteIndex, colorPalette[paletteIndex]);
+		return getColor(paletteIndexAddress);
+	}
+
+	public uint getColor(int paletteIndexAddress) {
+		int paletteIndex = readVram(cast(ushort) (backgroundColorAddress+paletteIndexAddress));
 		return colorPalette[paletteIndex];
 	}
 	
