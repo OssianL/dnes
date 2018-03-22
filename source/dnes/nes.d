@@ -59,7 +59,7 @@ class Nes {
 	}
 	
 	public void run() {
-		for(int i = 0; i < 4000000; i++) {
+		for(int i = 0; i < 40000000; i++) {
 			step();
 		}
 		endUI();
@@ -98,7 +98,7 @@ class Nes {
 			SDL_Quit();
 		}
 		nameTableRenderer = SDL_CreateRenderer(nameTableWindow, -1, SDL_RENDERER_ACCELERATED);
-		paletteWindow = SDL_CreateWindow("Palette Debug", 700, 800, 4*16, 16*16, 0);
+		paletteWindow = SDL_CreateWindow("Palette Debug", 700, 800, 4*16, 8*16, 0);
 		if(paletteWindow == null) {
 			writeln("paletteWindow fail!");
 			SDL_Quit();
@@ -111,7 +111,7 @@ class Nes {
 		renderDebugPatternTable();
 		renderDebugNameTable();
 		renderDebugPalette();
-		//SDL_Delay();
+		//SDL_Delay(100);
 	}
 	
 	private void endUI() {
@@ -143,7 +143,6 @@ class Nes {
 				int tileIndex = tile + (nt * ppu.tilesPerTable);
 				int patternIndex = ppu.getTilePatternIndex(tileIndex);
 				ubyte attributeValue = ppu.getTileAttributeValue(tileIndex);
-				//writefln("attributeValue: %x", attributeValue);
 				renderPattern(nameTableRenderer, x, y, patternIndex, attributeValue);
 			}
 		}
@@ -156,7 +155,7 @@ class Nes {
 		SDL_Rect rect;
 		rect.w = 16;
 		rect.h = 16;
-		for(int i = 0; i < 64; i++) {
+		for(int i = 0; i < 32; i++) {
 			rect.x = (i % 4) * 16;
 			rect.y = (i / 4) * 16;
 			uint color = ppu.getColor(i);
