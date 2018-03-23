@@ -175,7 +175,7 @@ class Nes {
 			ushort byte2Address = cast(ushort) (byte1Address+8);
 			ubyte byte1 = ppu.readVram(byte1Address);
 			ubyte byte2 = ppu.readVram(byte2Address);
-			for(int x = 8; x >= 0; x--) {
+			for(int x = 7; x >= 0; x--) {
 				ubyte pixelValue = byte1 & 1; //bit 0
 				byte1 >>= 1;
 				pixelValue |= (byte2 & 1) << 1; //bit 1
