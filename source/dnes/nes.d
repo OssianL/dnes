@@ -20,6 +20,9 @@ class Nes {
 	private Controller _controller2;
 	
 	private bool uiActive;
+	private SDL_Window* screenWindow;
+	private SDL_Renderer* screenRenderer;
+	private SDL_Texture* screenTexture;
 	private SDL_Window* patternTableWindow;
 	private SDL_Renderer* patternTableRenderer;
 	private SDL_Window* nameTableWindow;
@@ -59,7 +62,7 @@ class Nes {
 	}
 	
 	public void run() {
-		for(int i = 0; i < 40000000; i++) {
+		for(int i = 0; i < 4000000; i++) {
 			step();
 		}
 		endUI();
@@ -86,6 +89,13 @@ class Nes {
 	
 	private void initSdl() {
 		if(SDL_Init(SDL_INIT_VIDEO) != 0) assert(false, "sdl init fail!");
+		screenWindow = SDL_CreateWindow("primary display", 1000, 250, ppu.screenWidth, ppu.screenHeight, 0);
+		if(screenWindow == null) {
+			writeln("screenWindow fail!");
+			SDL_Quit();
+		}
+		screenRenderer = SDL_CreateRenderer(screenWindow, -1, SDL_RENDERER_ACCELERATED);
+		screenTexture = SDL_CreateTexture(screenRenderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, ppu.screenWidth, ppu.screenHeight);
 		patternTableWindow = SDL_CreateWindow("Pattern Table Debug", 500, 500, 128, 256, 0);
 		if(patternTableWindow == null) {
 			writeln("patternTableWindow fail!");
@@ -108,6 +118,7 @@ class Nes {
 	
 	private void updateUI() {
 		if(!uiActive) return;
+		renderScreen();
 		renderDebugPatternTable();
 		renderDebugNameTable();
 		renderDebugPalette();
@@ -116,10 +127,18 @@ class Nes {
 	
 	private void endUI() {
 		if(!uiActive) return;
+		SDL_DestroyWindow(screenWindow);
 		SDL_DestroyWindow(patternTableWindow);
 		SDL_DestroyWindow(nameTableWindow);
 		SDL_DestroyWindow(paletteWindow);
 		SDL_Quit();
+	}
+
+	private void renderScreen() {
+		ubyte[] frameBuffer = ppu.getFrameBuffer();
+		SDL_UpdateTexture(screenTexture, null, frameBuffer.ptr, ppu.screenWidth * 3);
+		SDL_RenderCopy(screenRenderer, screenTexture, null, null);
+		SDL_RenderPresent(screenRenderer);
 	}
 	
 	private void renderDebugPatternTable() {
@@ -180,12 +199,10 @@ class Nes {
 				byte1 >>= 1;
 				pixelValue |= (byte2 & 1) << 1; //bit 1
 				byte2 >>= 1;
-				//writefln("pixerlValue: %x attributeValue: %x", pixelValue, attributeValue);
 				uint color = ppu.getColor(pixelValue, attributeValue, false);
 				ubyte r = cast(ubyte) (color >> 16);
 				ubyte g = cast(ubyte) (color >> 8);
 				ubyte b = cast(ubyte) color;
-				//writefln("x: %s y: %s color: %x r: %x g: %x b: %x", pointX, pointY, color, r, g, b);
 				SDL_SetRenderDrawColor(renderer, r, g, b, 255);
 				SDL_RenderDrawPoint(renderer, pointX + x, pointY + y);
 			}

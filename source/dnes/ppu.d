@@ -38,8 +38,12 @@ class Ppu {
 	enum vBlankStartScanline = 241;
 	enum preRenderScanline = 261;
 	
-	enum tilesPerTable = 32 * 30;
+	enum tileTableWidth = 32;
+	enum tileTableHeight = 30;
+	enum tilesPerTable = tileTableWidth * tileTableHeight;
 	enum nameTableSize = 0x3c0;
+	enum screenWidth = 256;
+	enum screenHeight = 240; //only 224 are shown on ntsc tv
 	
 	private ubyte[0x3FFF] ppuRam;
 	private ubyte[256] oamRam;
@@ -83,9 +87,12 @@ class Ppu {
 	private uint cycles;
 	private int scanline;
 	private uint frame;
+
+	private ubyte[] frameBuffer;
 	
 	this(Nes nes) {
 		this.nes = nes;
+		frameBuffer = new ubyte[screenWidth*screenHeight*3];
 	}
 	
 	public void powerUp() {
@@ -123,23 +130,19 @@ class Ppu {
 	}
 	
 	public void step() {
-		if(scanline >= 0 && scanline < postRenderScanline) {
-			
+		if(scanline == preRenderScanline) {
+			preRender();
+		}
+		else if(scanline >= 0 && scanline < postRenderScanline) {
+			render();
 		}
 		else if(scanline == postRenderScanline) {
-			
+			postRender();
 		}
-		else if(isVBlankStart()) {
-			//vBlank start
-			vBlankStarted = true;
-			if(generateNmi) nes.cpu.raiseInterruption(Interruption.NMI);
-			writeln("vblank frame: ", frame);
-		}
-		else if(scanline == preRenderScanline) {
-			if(cycles == 0) vBlankStarted = false;
+		else if(scanline >= vBlankStartScanline && scanline < preRenderScanline) {
+			vBlank();
 		}
 		bool renderingEnabled = showBackground || showSprites;
-		//writeln("ppu cycles: ", cycles, " scanline: ", scanline);
 		cycles++;
 		if(cycles >= cyclesPerScanline) {
 			cycles = 0;
@@ -150,7 +153,6 @@ class Ppu {
 			}	
 		}
 		//TODO: event/odd frames cycle skip
-		
 	}
 	
 	/* $2000
@@ -401,11 +403,81 @@ class Ppu {
 		int paletteIndex = readVram(cast(ushort) (backgroundColorAddress+paletteIndexAddress));
 		return colorPalette[paletteIndex];
 	}
-	
+
+	public ubyte[] getFrameBuffer() {
+		return frameBuffer;
+	}
+
 	public bool isVBlankStart() {
 		return scanline == vBlankStartScanline && cycles == 0;
 	}
 	
+	private void preRender() {
+		if(cycles == 0) vBlankStarted = false;
+	}
+
+	private void render() {
+		
+	}
+
+	private void postRender() {
+
+	}
+
+	private void vBlank() {
+		if(isVBlankStart()) {
+			vBlankStarted = true;
+			if(generateNmi) nes.cpu.raiseInterruption(Interruption.NMI);
+			writeln("vblank frame: ", frame);
+			renderFrame();
+		}
+	}
+
+	private void renderFrame() {
+		renderBackground();
+	}
+
+	private void renderBackground() {
+		int tileStartX = scrollX / 8;
+		int tileStartY = scrollY / 8;
+		int tileStartScreenX = -(scrollX % 8);
+		int tileStartScreenY = -(scrollY % 8);
+		for(int y = 0; y < tileTableHeight; y++) {
+			int tileYIndex = (tileStartY + y) * tileTableWidth;
+			if((tileStartY + y) >= tileTableHeight) tileYIndex += tilesPerTable;
+			for(int x = 0; x < tileTableWidth; x++) {
+				int tileIndex = tileYIndex + tileStartX + x;
+				if(tileStartX + x >= tileTableWidth) tileIndex += tilesPerTable;
+				renderTile(tileIndex,  x*8 + tileStartScreenX, y*8 + tileStartScreenY);
+			}
+		}
+	}
+
+	private void renderTile(int tileIndex, int screenX, int screenY) {
+		int patternIndex = getTilePatternIndex(tileIndex);
+		ubyte attributeValue = getTileAttributeValue(tileIndex);
+		int patternStart = patternIndex*16;
+		for(int y = 0; y < 8; y++) {
+			if(screenY + y >= screenHeight || screenY + y < 0) continue;
+			ushort byte1Address = cast(ushort) (patternStart+y);
+			ushort byte2Address = cast(ushort) (byte1Address+8);
+			ubyte byte1 = readVram(byte1Address);
+			ubyte byte2 = readVram(byte2Address);
+			for(int x = 7; x >= 0; x--) {
+				if(screenX + x >= screenWidth || screenX + x < 0) continue;
+				ubyte pixelValue = byte1 & 1; //bit 0
+				byte1 >>= 1;
+				pixelValue |= (byte2 & 1) << 1; //bit 1
+				byte2 >>= 1;
+				uint color = getColor(pixelValue, attributeValue, false);
+				uint pixelIndex = (((screenY + y) * screenWidth) + screenX + x) * 3;
+				frameBuffer[pixelIndex] = cast(ubyte) (color >> 16); //red
+				frameBuffer[pixelIndex+1] = cast(ubyte) (color >> 8); //green
+				frameBuffer[pixelIndex+2] = cast(ubyte) color; //blue
+			}
+		}
+	}
+
 	private ushort internalMemoryMirroring(ushort address) {
 		address %= 0x3FFF; //$4000-$10000 mirrors $0000-$3fff
 		if(address >= 0x3000 && address < 0x3f00) address -= 0x1000; //$3000-$3eff mirrors $2000-$2eff
