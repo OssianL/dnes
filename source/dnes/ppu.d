@@ -90,6 +90,7 @@ class Ppu {
 	private uint frame;
 
 	private ubyte[] frameBuffer;
+	private ubyte[screenHeight] spriteOverflowCounters;
 	
 	this(Nes nes) {
 		this.nes = nes;
@@ -399,6 +400,7 @@ class Ppu {
 	
 	private void preRender() {
 		if(cycles == 0) vBlankStarted = false;
+		if(cycles == 1) spriteOverflow = false;
 	}
 
 	private void render() {
@@ -415,6 +417,9 @@ class Ppu {
 			if(generateNmi) nes.cpu.raiseInterruption(Interruption.NMI);
 			writeln("vblank frame: ", frame);
 			renderFrame();
+		}
+		if(scanline == preRenderScanline - 1 && cycles == cyclesPerScanline) { //vblank end
+			sprite0Hit = false;
 		}
 	}
 
@@ -449,41 +454,48 @@ class Ppu {
 			bool flipVertical = getSpriteVerticalFlip(i);
 			bool flipHorizontal = getSpriteHorizontalFlip(i);
 			bool priority = getSpritePriority(i);
-			renderPattern(patternIndex, attributeValue, x, y, flipHorizontal, flipVertical, true, priority);
+			renderPattern(patternIndex, attributeValue, x, y, flipHorizontal, flipVertical, true, i == 0, priority);
 		}
 	}
 
 	private void renderTile(int tileIndex, int screenX, int screenY) {
 		int patternIndex = getTilePatternIndex(tileIndex);
 		ubyte attributeValue = getTileAttributeValue(tileIndex);
-		renderPattern(patternIndex, attributeValue, screenX, screenY, false, false, false, false);
+		renderPattern(patternIndex, attributeValue, screenX, screenY, false, false, false, false, false);
 	}
 
-	private void renderPattern(int patternIndex, ubyte attributeValue, int screenX, int screenY, bool flipHorizontal, bool flipVertical, bool isSprite, bool prioruty) {
+	private void renderPattern(int patternIndex, ubyte attributeValue, int posX, int posY, bool flipHorizontal, bool flipVertical, bool isSprite, bool isSpriteZero, bool priority) {
 		int patternStart = patternIndex*16;
+		uint backgroundColor = getColor(0, 0, false);
 		for(int y = 0; y < 8; y++) {
 			int patternY = flipVertical ? 7 - y : y;
-			if(screenY + patternY >= screenHeight || screenY + patternY < 0) continue;
+			int pixelY = posY + patternY;
+			if(pixelY >= screenHeight || pixelY < 0) continue;
+			if(isSprite) {
+				spriteOverflowCounters[pixelY]++;
+				if(spriteOverflowCounters[pixelY] > 8) spriteOverflow = true;
+			}
 			ushort byte1Address = cast(ushort) (patternStart+patternY);
 			ushort byte2Address = cast(ushort) (byte1Address+8);
 			ubyte byte1 = readVram(byte1Address);
 			ubyte byte2 = readVram(byte2Address);
 			for(int x = 0; x < 8; x++) {
 				int patternX = flipHorizontal ? x : 7 - x;
-				if(screenX + patternX >= screenWidth || screenX + patternX < 0) continue;
+				int pixelX = posX + patternX;
+				if(pixelX >= screenWidth || pixelX < 0) continue;
 				ubyte pixelValue = byte1 & 1; //bit 0
 				byte1 >>= 1;
 				pixelValue |= (byte2 & 1) << 1; //bit 1
 				byte2 >>= 1;
 				if(isSprite && pixelValue == 0) continue; //don't draw sprite background
+				uint pixelIndex = (((pixelY) * screenWidth) + pixelX) * 3;
+				uint oldColor = (((frameBuffer[pixelIndex] << 8) | frameBuffer[pixelIndex+1]) << 8) | frameBuffer[pixelIndex+2]; //TODO: optimize, pointer cast thing
+				if(isSprite && priority && oldColor != backgroundColor) continue; //only draw on background color
+				if(isSpriteZero && oldColor != backgroundColor && pixelValue != 0) sprite0Hit = true;
 				uint color = getColor(pixelValue, attributeValue, isSprite);
-				uint pixelIndex = (((screenY + y) * screenWidth) + screenX + patternX) * 3;
 				frameBuffer[pixelIndex] = cast(ubyte) (color >> 16); //red
 				frameBuffer[pixelIndex+1] = cast(ubyte) (color >> 8); //green
 				frameBuffer[pixelIndex+2] = cast(ubyte) color; //blue
-				//TODO: priority, draw sprites behind background
-				//TODO: sprite 0 overlap detection
-				//TODO: sprite overflow detection
 			}
 		}
 	}
