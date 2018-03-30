@@ -441,8 +441,9 @@ class Ppu {
 
 	private void renderSprites() {
 		for(int i = spriteCount - 1; i >= 0; i--) { //earlier sprites have priority and get drawn on top (after)
-			ubyte x = getSpriteX(i);
 			ubyte y = getSpriteY(i);
+			if(y == 0) continue;
+			ubyte x = getSpriteX(i);
 			ubyte patternIndex = getSpritePatternIndex(i);
 			ubyte attributeValue = getSpriteAttributeValue(i);
 			bool flipVertical = getSpriteVerticalFlip(i);
@@ -477,10 +478,12 @@ class Ppu {
 				if(isSprite && pixelValue == 0) continue; //don't draw sprite background
 				uint color = getColor(pixelValue, attributeValue, isSprite);
 				uint pixelIndex = (((screenY + y) * screenWidth) + screenX + patternX) * 3;
-				//TODO: priority, draw sprites behind background
 				frameBuffer[pixelIndex] = cast(ubyte) (color >> 16); //red
 				frameBuffer[pixelIndex+1] = cast(ubyte) (color >> 8); //green
 				frameBuffer[pixelIndex+2] = cast(ubyte) color; //blue
+				//TODO: priority, draw sprites behind background
+				//TODO: sprite 0 overlap detection
+				//TODO: sprite overflow detection
 			}
 		}
 	}
@@ -540,5 +543,4 @@ class Ppu {
 		if(oamRam[(spriteIndex * 4) + 2] & 0b10000000) return true;
 		return false;
 	}
-	
 }
