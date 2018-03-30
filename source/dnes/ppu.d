@@ -38,6 +38,7 @@ class Ppu {
 	enum vBlankStartScanline = 241;
 	enum preRenderScanline = 261;
 	
+	enum spriteCount = 64;
 	enum tileTableWidth = 32;
 	enum tileTableHeight = 30;
 	enum tilesPerTable = tileTableWidth * tileTableHeight;
@@ -324,16 +325,6 @@ class Ppu {
 		else ppuRam[internalMemoryMirroring(address)] = value;
 	}
 	
-	/*
-	public void oamDma(ubyte[256] oamData) {
-		ubyte start = oamAddress;
-		for(int i = 0; i < 256; i++) {
-			oamAddress = start + i;
-			if(oamAddress > 255) oamAddress -= 256;
-			oamRam[oamAddress] = oamData[i];
-		}
-	}*/
-	
 	public ushort getBackgroundPatternTableAddress() {
 		if(backgroundPatternTableAddress) return 0x1000;
 		else return 0;
@@ -344,12 +335,6 @@ class Ppu {
 		if(spritePatternTableAddress) return 0x1000;
 		else return 0;
 	}
-	
-	/*
-	public ubyte[] getPattern(int patternIndex) {
-		int start = patternIndex*16;
-		return ppuRam[start..start+16];
-	}*/
 	
 	//return the 2 most significant bit for pattern palette indexes
 	public ubyte getTileAttributeValue(uint index) {
@@ -435,12 +420,13 @@ class Ppu {
 
 	private void renderFrame() {
 		renderBackground();
+		renderSprites();
 	}
 
 	private void renderBackground() {
-		int tileStartX = scrollX / 8;
+		int tileStartX = scrollX / 8; //first visible upper left tile
 		int tileStartY = scrollY / 8;
-		int tileStartScreenX = -(scrollX % 8);
+		int tileStartScreenX = -(scrollX % 8); //screen coordinates of first tile
 		int tileStartScreenY = -(scrollY % 8);
 		for(int y = 0; y < tileTableHeight; y++) {
 			int tileYIndex = (tileStartY + y) * tileTableWidth;
@@ -453,24 +439,45 @@ class Ppu {
 		}
 	}
 
+	private void renderSprites() {
+		for(int i = spriteCount - 1; i >= 0; i--) { //earlier sprites have priority and get drawn on top (after)
+			ubyte x = getSpriteX(i);
+			ubyte y = getSpriteY(i);
+			ubyte patternIndex = getSpritePatternIndex(i);
+			ubyte attributeValue = getSpriteAttributeValue(i);
+			bool flipVertical = getSpriteVerticalFlip(i);
+			bool flipHorizontal = getSpriteHorizontalFlip(i);
+			bool priority = getSpritePriority(i);
+			renderPattern(patternIndex, attributeValue, x, y, flipHorizontal, flipVertical, true, priority);
+		}
+	}
+
 	private void renderTile(int tileIndex, int screenX, int screenY) {
 		int patternIndex = getTilePatternIndex(tileIndex);
 		ubyte attributeValue = getTileAttributeValue(tileIndex);
+		renderPattern(patternIndex, attributeValue, screenX, screenY, false, false, false, false);
+	}
+
+	private void renderPattern(int patternIndex, ubyte attributeValue, int screenX, int screenY, bool flipHorizontal, bool flipVertical, bool isSprite, bool prioruty) {
 		int patternStart = patternIndex*16;
 		for(int y = 0; y < 8; y++) {
-			if(screenY + y >= screenHeight || screenY + y < 0) continue;
-			ushort byte1Address = cast(ushort) (patternStart+y);
+			int patternY = flipVertical ? 7 - y : y;
+			if(screenY + patternY >= screenHeight || screenY + patternY < 0) continue;
+			ushort byte1Address = cast(ushort) (patternStart+patternY);
 			ushort byte2Address = cast(ushort) (byte1Address+8);
 			ubyte byte1 = readVram(byte1Address);
 			ubyte byte2 = readVram(byte2Address);
-			for(int x = 7; x >= 0; x--) {
-				if(screenX + x >= screenWidth || screenX + x < 0) continue;
+			for(int x = 0; x < 8; x++) {
+				int patternX = flipHorizontal ? x : 7 - x;
+				if(screenX + patternX >= screenWidth || screenX + patternX < 0) continue;
 				ubyte pixelValue = byte1 & 1; //bit 0
 				byte1 >>= 1;
 				pixelValue |= (byte2 & 1) << 1; //bit 1
 				byte2 >>= 1;
-				uint color = getColor(pixelValue, attributeValue, false);
-				uint pixelIndex = (((screenY + y) * screenWidth) + screenX + x) * 3;
+				if(isSprite && pixelValue == 0) continue; //don't draw sprite background
+				uint color = getColor(pixelValue, attributeValue, isSprite);
+				uint pixelIndex = (((screenY + y) * screenWidth) + screenX + patternX) * 3;
+				//TODO: priority, draw sprites behind background
 				frameBuffer[pixelIndex] = cast(ubyte) (color >> 16); //red
 				frameBuffer[pixelIndex+1] = cast(ubyte) (color >> 8); //green
 				frameBuffer[pixelIndex+2] = cast(ubyte) color; //blue
@@ -499,39 +506,37 @@ class Ppu {
 				address = cast(ushort) (address - 0x800);
 		}
 		return address;
-		//TODO make sure this is right!!!
 	}
-	
 	
 	//SPRITE RAM STUFF
 	
-	private ubyte getSpriteX(ubyte spriteIndex) {
+	private ubyte getSpriteX(int spriteIndex) {
 		return oamRam[(spriteIndex * 4) + 3];
 	}
 	
-	private ubyte getSpriteY(ubyte spriteIndex) {
-		return oamRam[(spriteIndex * 4) + 0];
+	private ubyte getSpriteY(int spriteIndex) {
+		return cast(ubyte) (oamRam[(spriteIndex * 4) + 0] + 1);
 	}
 	
-	private ubyte getSpriteTileIndex(ubyte spriteIndex) {
+	private ubyte getSpritePatternIndex(int spriteIndex) {
 		return oamRam[(spriteIndex * 4) + 1];
 	}
 	
-	private ubyte getSpritePalette(ubyte spriteIndex) {
-		return oamRam[(spriteIndex * 4) + 2] & 0b00000011; //TODO:  +4???
+	private ubyte getSpriteAttributeValue(int spriteIndex) {
+		return (oamRam[(spriteIndex * 4) + 2] & 0b00000011) << 2;
 	}
 	
-	private bool getSpritePriority(ubyte spriteIndex) {
+	private bool getSpritePriority(int spriteIndex) {
 		if(oamRam[(spriteIndex * 4) + 2] & 0b00100000) return true;
 		return false;
 	}
 	
-	private bool getSpriteHorizontalFlip(ubyte spriteIndex) {
+	private bool getSpriteHorizontalFlip(int spriteIndex) {
 		if(oamRam[(spriteIndex * 4) + 2] & 0b01000000) return true;
 		return false;
 	}
 	
-	private bool getSpriteVerticalFlip(ubyte spriteIndex) {
+	private bool getSpriteVerticalFlip(int spriteIndex) {
 		if(oamRam[(spriteIndex * 4) + 2] & 0b10000000) return true;
 		return false;
 	}
