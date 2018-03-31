@@ -20,6 +20,7 @@ class Nes {
 	private Controller _controller2;
 	
 	private bool uiActive;
+	private bool quit;
 	private SDL_Window* screenWindow;
 	private SDL_Renderer* screenRenderer;
 	private SDL_Texture* screenTexture;
@@ -62,7 +63,7 @@ class Nes {
 	}
 	
 	public void run() {
-		for(int i = 0; i < 4000000; i++) {
+		while(!quit) {
 			step();
 		}
 		endUI();
@@ -74,6 +75,7 @@ class Nes {
 			ppu.step();
 			if(ppu.isVBlankStart()) {
 				updateUI();
+				handleEvents();
 			}
 		}
 	}
@@ -120,9 +122,43 @@ class Nes {
 		if(!uiActive) return;
 		renderScreen();
 		renderDebugPatternTable();
-		renderDebugNameTable();
+		//renderDebugNameTable();
 		renderDebugPalette();
-		//SDL_Delay(100);
+		//SDL_Delay(5);
+	}
+
+	private void handleEvents() {
+		SDL_Event e;
+		while(SDL_PollEvent(&e) != 0) {
+			if(e.type == SDL_QUIT) quit = true;
+			else if(e.type == SDL_KEYDOWN) {
+				if(e.key.keysym.sym == SDLK_ESCAPE) quit = true;
+				switch(e.key.keysym.sym) {
+					case SDLK_UP: return controller1.buttonDown(Controller.Button.up);
+					case SDLK_DOWN: return controller1.buttonDown(Controller.Button.down);
+					case SDLK_RIGHT: return controller1.buttonDown(Controller.Button.right);
+					case SDLK_LEFT: return controller1.buttonDown(Controller.Button.left);
+					case SDLK_z: return controller1.buttonDown(Controller.Button.a);
+					case SDLK_x: return controller1.buttonDown(Controller.Button.b);
+					case SDLK_a: return controller1.buttonDown(Controller.Button.select);
+					case SDLK_s: return controller1.buttonDown(Controller.Button.start);
+					default: return;
+				}
+			}
+			else if(e.type == SDL_KEYUP) {
+				switch(e.key.keysym.sym) {
+					case SDLK_UP: return controller1.buttonUp(Controller.Button.up);
+					case SDLK_DOWN: return controller1.buttonUp(Controller.Button.down);
+					case SDLK_RIGHT: return controller1.buttonUp(Controller.Button.right);
+					case SDLK_LEFT: return controller1.buttonUp(Controller.Button.left);
+					case SDLK_z: return controller1.buttonUp(Controller.Button.a);
+					case SDLK_x: return controller1.buttonUp(Controller.Button.b);
+					case SDLK_a: return controller1.buttonUp(Controller.Button.select);
+					case SDLK_s: return controller1.buttonUp(Controller.Button.start);
+					default: return;
+				}
+			}
+		}
 	}
 	
 	private void endUI() {
