@@ -102,7 +102,7 @@ const byte[256] cycleCosts = [
 class Cpu {
 	
 	private Nes nes;
-	private void delegate(Mode, ubyte, ushort)[Op] operationDelegates;
+	private void delegate(Mode, ubyte, ushort)[256] operationDelegates;
 	private CpuMemory memory;
 	
 	//registers
@@ -151,15 +151,23 @@ class Cpu {
 		this.nes = nes;
 		this.memory = new CpuMemory(nes);
 		operationDelegates = [
-			Op.ADC:&adc, Op.AND:&and, Op.ASL:&asl, Op.BCC:&bcc, Op.BCS:&bcs, Op.BEQ:&beq, Op.BIT:&bit, Op.BMI:&bmi,
-			Op.BNE:&bne, Op.BPL:&bpl, Op.BRK:&brk, Op.BVC:&bvc, Op.BVS:&bvs, Op.CLC:&clc, Op.CLD:&cld, Op.CLI:&cli,
-			Op.CLV:&clv, Op.CMP:&cmp, Op.CPX:&cpx, Op.CPY:&cpy, Op.DEC:&dec, Op.DEX:&dex, Op.DEY:&dey, Op.EOR:&eor,
-			Op.INC:&inc, Op.INX:&inx, Op.INY:&iny, Op.JMP:&jmp, Op.JSR:&jsr, Op.LDA:&lda, Op.LDX:&ldx, Op.LDY:&ldy,
-			Op.LSR:&lsr, Op.NOP:&nop, Op.ORA:&ora, Op.PHA:&pha, Op.PHP:&php, Op.PLA:&pla, Op.PLP:&plp, Op.ROL:&rol,
-			Op.ROR:&ror, Op.RTI:&rti, Op.RTS:&rts, Op.SBC:&sbc, Op.SEC:&sec, Op.SED:&sed, Op.SEI:&sei, Op.STA:&sta,
-			Op.STX:&stx, Op.STY:&sty, Op.TAX:&tax, Op.TAY:&tay, Op.TSX:&tsx, Op.TXA:&txa, Op.TXS:&txs, Op.TYA:&tya,
-			//unofficial opcodes:
-			Op.LAX:&lax, Op.SAX:&sax, Op.DCP:&dcp, Op.ISC:&isc, Op.SLO:&slo, Op.RLA:&rla, Op.SRE:&sre, Op.RRA:&rra
+		//0	  1     2     3     4     5     6     7     8     9     A     B     C     D     E     F
+		&brk, &ora, &nop, &slo, &nop, &ora, &asl, &slo, &php, &ora, &asl, &nop, &nop, &ora, &asl, &slo, //0
+		&bpl, &ora, &nop, &slo, &nop, &ora, &asl, &slo, &clc, &ora, &nop, &slo, &nop, &ora, &asl, &slo,	//1
+		&jsr, &and, &nop, &rla, &bit, &and, &rol, &rla, &plp, &and, &rol, &nop, &bit, &and, &rol, &rla,	//2
+		&bmi, &and, &nop, &rla, &nop, &and, &rol, &rla, &sec, &and, &nop, &rla, &nop, &and, &rol, &rla,	//3
+		&rti, &eor, &nop, &sre, &nop, &eor, &lsr, &sre, &pha, &eor, &lsr, &nop, &jmp, &eor, &lsr, &sre,	//4
+		&bvc, &eor, &nop, &sre, &nop, &eor, &lsr, &sre, &cli, &eor, &nop, &sre, &nop, &eor, &lsr, &sre,	//5
+		&rts, &adc, &nop, &rra, &nop, &adc, &ror, &rra, &pla, &adc, &ror, &nop, &jmp, &adc, &ror, &rra,	//6
+		&bvs, &adc, &nop, &rra, &nop, &adc, &ror, &rra, &sei, &adc, &nop, &rra, &nop, &adc, &ror, &rra,	//7
+		&nop, &sta, &nop, &sax, &sty, &sta, &stx, &sax, &dey, &nop, &txa, &nop, &sty, &sta, &stx, &sax,	//8
+		&bcc, &sta, &nop, &nop, &sty, &sta, &stx, &sax, &tya, &sta, &txs, &nop, &nop, &sta, &nop, &nop,	//9
+		&ldy, &lda, &ldx, &lax, &ldy, &lda, &ldx, &lax, &tay, &lda, &tax, &lax, &ldy, &lda, &ldx, &lax,	//a
+		&bcs, &lda, &nop, &lax, &ldy, &lda, &ldx, &lax, &clv, &lda, &tsx, &nop, &ldy, &lda, &ldx, &lax,	//b
+		&cpy, &cmp, &nop, &dcp, &cpy, &cmp, &dec, &dcp, &iny, &cmp, &dex, &nop, &cpy, &cmp, &dec, &dcp,	//c
+		&bne, &cmp, &nop, &dcp, &nop, &cmp, &dec, &dcp, &cld, &cmp, &nop, &dcp, &nop, &cmp, &dec, &dcp,	//d
+		&cpx, &sbc, &nop, &isc, &cpx, &sbc, &inc, &isc, &inx, &sbc, &nop, &sbc, &cpx, &sbc, &inc, &isc,	//e
+		&beq, &sbc, &nop, &isc, &nop, &sbc, &inc, &isc, &sed, &sbc, &nop, &isc, &nop, &sbc, &inc, &isc	//f
 		];
 	}
 	
@@ -201,7 +209,7 @@ class Cpu {
 			//printDebugLine();
 			instructions++;
 			addPC(getInstructionSize(mode));
-			operationDelegates[operation](mode, immediate, address);
+			operationDelegates[opcode](mode, immediate, address);
 			addStallCycles(getCycleCost(opcode) + memory.getPageCrossedValue());
 			memory.clearPageCrossed();
 		}
