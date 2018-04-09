@@ -27,7 +27,6 @@ class LogTester {
 	
 	public static bool test(string romFilename, string logFilename) {
 		Nes nes = new Nes();
-		Cpu cpu = nes.cpu;
 		Rom rom = new Rom(romFilename);
 		nes.loadRom(rom);
 		nes.powerUp();
@@ -99,7 +98,7 @@ class LogTester {
 	}
 }
 
-
+/*
 unittest {
 	Nes nes = new Nes();
 	Cpu cpu = nes.cpu;
@@ -109,8 +108,10 @@ unittest {
 	cpu.setPC(0xc000);
 	cpu.loadNextInstruction();
 	cpu.setInterruption(Interruption.NONE);
+	writeln("jee");
 	assert(LogTester.test("testRoms/nestest.log", nes), "nestest failed");
 }
+*/
 
 /*
 unittest {

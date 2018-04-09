@@ -415,7 +415,6 @@ class Ppu {
 		if(isVBlankStart()) {
 			vBlankStarted = true;
 			if(generateNmi) nes.cpu.raiseInterruption(Interruption.NMI);
-			writeln("vblank frame: ", frame);
 			renderFrame();
 		}
 		if(scanline == preRenderScanline - 1 && cycles == cyclesPerScanline) { //vblank end

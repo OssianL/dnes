@@ -20,6 +20,9 @@ class Nes {
 	private Controller _controller2;
 	
 	private bool uiActive;
+	private bool screenUIActive = true;
+	private bool debugUIActive;
+	private bool limitFrameRate;
 	private bool quit;
 	private SDL_Window* screenWindow;
 	private SDL_Renderer* screenRenderer;
@@ -41,7 +44,9 @@ class Nes {
 	
 	public void startUI() {
 		uiActive = true;
-		initSdl();
+		if(SDL_Init(SDL_INIT_VIDEO) != 0) assert(false, "sdl init fail!");
+		if(screenUIActive) initScreenUI();
+		if(debugUIActive) initDebugUI();
 	}
 	
 	public void loadRom(Rom rom) {
@@ -88,9 +93,24 @@ class Nes {
 	public @property Mapper mapper() {return _mapper;}
 	public @property Controller controller1() {return _controller1;}
 	public @property Controller controller2() {return _controller2;}
-	
-	private void initSdl() {
-		if(SDL_Init(SDL_INIT_VIDEO) != 0) assert(false, "sdl init fail!");
+
+	public void setLimitFrameRate(bool limitFrameRate) {
+		this.limitFrameRate = limitFrameRate;
+	}
+
+	public bool getLimitFrameRate() {
+		return limitFrameRate;
+	}
+
+	public void setDebugUIActive(bool debugUIActive) {
+		this.debugUIActive = debugUIActive;
+	}
+
+	public bool getDebugUIActive() {
+		return debugUIActive;
+	}
+
+	private void initScreenUI() {
 		screenWindow = SDL_CreateWindow("primary display", 1000, 250, ppu.screenWidth, ppu.screenHeight, 0);
 		if(screenWindow == null) {
 			writeln("screenWindow fail!");
@@ -98,6 +118,9 @@ class Nes {
 		}
 		screenRenderer = SDL_CreateRenderer(screenWindow, -1, SDL_RENDERER_ACCELERATED);
 		screenTexture = SDL_CreateTexture(screenRenderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, ppu.screenWidth, ppu.screenHeight);
+	}
+
+	private void initDebugUI() {
 		patternTableWindow = SDL_CreateWindow("Pattern Table Debug", 500, 500, 128, 256, 0);
 		if(patternTableWindow == null) {
 			writeln("patternTableWindow fail!");
@@ -120,14 +143,16 @@ class Nes {
 	
 	private void updateUI() {
 		if(!uiActive) return;
-		renderScreen();
+		if(screenUIActive) renderScreen();
+		if(!debugUIActive) return;
 		renderDebugPatternTable();
-		//renderDebugNameTable();
+		renderDebugNameTable();
 		renderDebugPalette();
-		//SDL_Delay(5);
+		if(limitFrameRate) SDL_Delay(5); //TODO: calculate correct sleep time
 	}
 
 	private void handleEvents() {
+		if(!uiActive) return;
 		SDL_Event e;
 		while(SDL_PollEvent(&e) != 0) {
 			if(e.type == SDL_QUIT) quit = true;
@@ -163,10 +188,12 @@ class Nes {
 	
 	private void endUI() {
 		if(!uiActive) return;
-		SDL_DestroyWindow(screenWindow);
-		SDL_DestroyWindow(patternTableWindow);
-		SDL_DestroyWindow(nameTableWindow);
-		SDL_DestroyWindow(paletteWindow);
+		if(screenUIActive) SDL_DestroyWindow(screenWindow);
+		if(debugUIActive) {
+			SDL_DestroyWindow(patternTableWindow);
+			SDL_DestroyWindow(nameTableWindow);
+			SDL_DestroyWindow(paletteWindow);
+		}
 		SDL_Quit();
 	}
 
