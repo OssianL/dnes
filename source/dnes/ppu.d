@@ -169,7 +169,6 @@ class Ppu {
 	+-------- generateNmi
 	*/
 	public void writeControlRegister(ubyte value) {
-		//writefln("ppu control mask: %x", value);
 		baseNametableAddress 			= value & 0b00000011;
 		vramAddressIncrement			= (value & 0b00000100) != 0;
 		spritePatternTableAddress		= (value & 0b00001000) != 0;
@@ -193,7 +192,6 @@ class Ppu {
 	+-------- intensifyBlues
 	*/
 	public void writeMaskRegister(ubyte value) {
-		//writefln("ppu write mask: %x", value);
 		grayscale				= (value & 0b00000001) != 0;
 		showBackgroundInLeft	= (value & 0b00000010) != 0;
 		showSpritesInLeft		= (value & 0b00000100) != 0;
@@ -222,7 +220,6 @@ class Ppu {
 		//Reading the status register will clear vBlankStarted mentioned above and also the address latch used by PPUSCROLL and PPUADDR. It does not clear the sprite 0 hit or overflow bit.
 		vBlankStarted = false;
 		writeToggle = false;
-		//writefln("ppu read status: %x", status);
 		return status;
 		/*
 		TODO:
@@ -294,7 +291,6 @@ class Ppu {
 	//$2007
 	public ubyte readVram() {
 		ubyte value;
-		//TODO: do some memory mirroring?
 		if(vramAddress >= 0x3f00 && vramAddress <= 0x3fff) {
 			value = readVram(vramAddress);
 			vramDataBuffer = readVram(cast(ushort) (vramAddress - 0x2000)); //is this right? unclear specs

@@ -259,7 +259,6 @@ class CpuMemory {
 		address = cast(ubyte) (address + nes.cpu.getX());
 		ushort realAddress = read(address);
 		realAddress |= (cast(ushort) read(cast(ubyte) (address + 1))) << 8;
-		//if(nes.cpu.instructions == 6352) writefln("inxRead  newAddress: %x realAddress: %x value: %x", address, realAddress, read(realAddress));
 		return read(realAddress);
 	}
 	

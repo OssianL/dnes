@@ -8,16 +8,8 @@ import derelict.sdl2.ttf;
 
 void main() {
 	loadDerelict();
-	benchmark();
-	/*
-	Nes nes = new Nes();
-	nes.startUI();
-	Rom rom = new Rom("gitignore/donkeykong.nes");
-	//Rom rom = new Rom("testRoms/scroll.nes");
-	nes.loadRom(rom);
-	nes.powerUp();
-	nes.run();
-	*/
+	//benchmark();
+    runRom("gitignore/donkeykong.nes");
 }
 
 void loadDerelict() {
@@ -25,6 +17,15 @@ void loadDerelict() {
     DerelictSDL2Image.load();
     DerelictSDL2Mixer.load();
     DerelictSDL2ttf.load();
+}
+
+void runRom(string romPath) {
+    Nes nes = new Nes();
+	nes.startUI();
+	Rom rom = new Rom(romPath);
+	nes.loadRom(rom);
+	nes.powerUp();
+	nes.run();
 }
 
 void benchmark() {
