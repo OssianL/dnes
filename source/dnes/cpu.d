@@ -102,7 +102,7 @@ const byte[256] cycleCosts = [
 class Cpu {
 	
 	private Nes nes;
-	private void delegate(Mode, ubyte, ushort)[256] operationDelegates;
+	private void delegate()[256] operationDelegates;
 	private CpuMemory memory;
 	
 	//registers
@@ -209,7 +209,7 @@ class Cpu {
 			//printDebugLine();
 			instructions++;
 			addPC(getInstructionSize(mode));
-			operationDelegates[opcode](mode, immediate, address);
+			operationDelegates[opcode]();
 			addStallCycles(getCycleCost(opcode) + memory.getPageCrossedValue());
 			memory.clearPageCrossed();
 		}
@@ -468,7 +468,7 @@ class Cpu {
 	This instruction adds the contents of a memory location to the accumulator together with the carry bit.
 	If overflow occurs the carry bit is set, this enables multiple byte addition to be performed.
 	*/
-	private void adc(Mode mode, ubyte immediate, ushort address) {
+	private void adc() {
 		uint value = memory.read(mode, immediate, address);
 		uint result = value + a + getCarryFlagValue();
 		updateOverflowFlag(a, value, result);
@@ -482,7 +482,7 @@ class Cpu {
 	Logical AND
 	A logical AND is performed, bit by bit, on the accumulator contents using the contents of a byte of memory.
 	*/
-	private void and(Mode mode, ubyte immediate, ushort address) {
+	private void and() {
 		ubyte value = memory.read(mode, immediate, address);
 		setA(value & getA());
 		updateZeroFlag(getA());
@@ -495,7 +495,7 @@ class Cpu {
 	is placed in the carry flag. The effect of this operation is to multiply the memory contents by 2 (ignoring 2's
 	complement considerations), setting the carry if the result will not fit in 8 bits.
 	*/
-	private void asl(Mode mode, ubyte immediate, ushort address) {
+	private void asl() {
 		int result = memory.read(mode, immediate, address);
 		setCarryFlag(cast(bool) (result & 0b10000000)); //set to old bit 7
 		result <<= 1;
@@ -509,7 +509,7 @@ class Cpu {
 	If the carry flag is clear then add the relative displacement to the program counter to cause a branch to a new
 	location.
 	*/
-	private void bcc(Mode mode, ubyte immediate, ushort address) {
+	private void bcc() {
 		if(!getCarryFlag()) {
 			byte relativeAddress = cast(byte) immediate;
 			branch(relativeAddress);
@@ -521,7 +521,7 @@ class Cpu {
 	If the carry flag is set then add the relative displacement to the program counter to cause a branch to a new
 	location.
 	*/
-	private void bcs(Mode mode, ubyte immediate, ushort address) {
+	private void bcs() {
 		if(getCarryFlag()) {
 			byte relativeAddress = cast(byte) immediate;
 			branch(relativeAddress);
@@ -533,7 +533,7 @@ class Cpu {
 	If the zero flag is set then add the relative displacement to the program counter to cause a branch to a new
 	location.
 	*/
-	private void beq(Mode mode, ubyte immediate, ushort address) {
+	private void beq() {
 		if(getZeroFlag()) {
 			byte relativeAddress = cast(byte) immediate;
 			branch(relativeAddress);
@@ -546,7 +546,7 @@ class Cpu {
 	ANDed with the value in memory to set or clear the zero flag, but the result is not kept. Bits 7 and 6 of the value
 	from memory are copied into the N and V flags.
 	*/
-	private void bit(Mode mode, ubyte immediate, ushort address) {
+	private void bit() {
 		uint value = memory.read(mode, immediate, address);
 		uint result = value & a;
 		updateZeroFlag(result);
@@ -559,7 +559,7 @@ class Cpu {
 	If the negative flag is set then add the relative displacement to the program counter to cause a branch to a new
 	location.
 	*/
-	private void bmi(Mode mode, ubyte immediate, ushort address) {
+	private void bmi() {
 		if(getNegativeFlag()) {
 			byte relativeAddress = cast(byte) immediate;
 			branch(relativeAddress);
@@ -571,7 +571,7 @@ class Cpu {
 	If the zero flag is clear then add the relative displacement to the program counter to cause a branch to a new
 	location.
 	*/
-	private void bne(Mode mode, ubyte immediate, ushort address) {
+	private void bne() {
 		if(!getZeroFlag()) {
 			byte relativeAddress = cast(byte) immediate;
 			branch(relativeAddress);
@@ -583,7 +583,7 @@ class Cpu {
 	If the negative flag is clear then add the relative displacement to the program counter to cause a branch to a new
 	location.
 	*/
-	private void bpl(Mode mode, ubyte immediate, ushort address) {
+	private void bpl() {
 		if(!getNegativeFlag()) {
 			byte relativeAddress = cast(byte) immediate;
 			branch(relativeAddress);
@@ -596,7 +596,7 @@ class Cpu {
 	pushed on the stack then the IRQ interrupt vector at $FFFE/F is loaded into the PC and the break flag in the status
 	set to one.
 	*/
-	private void brk(Mode mode, ubyte immediate, ushort address) {
+	private void brk() {
 		raiseInterruption(Interruption.IRQ);
 		brkInterruption = true;
 	}
@@ -606,7 +606,7 @@ class Cpu {
 	If the overflow flag is clear then add the relative displacement to the program counter to cause a branch to a new
 	location.
 	*/
-	private void bvc(Mode mode, ubyte immediate, ushort address) {
+	private void bvc() {
 		if(!getOverflowFlag()) {
 			byte relativeAddress = cast(byte) immediate;
 			branch(relativeAddress);
@@ -618,7 +618,7 @@ class Cpu {
 	If the overflow flag is set then add the relative displacement to the program counter to cause a branch to a new
 	location.
 	*/
-	private void bvs(Mode mode, ubyte immediate, ushort address) {
+	private void bvs() {
 		if(getOverflowFlag()) {
 			byte relativeAddress = cast(byte) immediate;
 			branch(relativeAddress);
@@ -629,7 +629,7 @@ class Cpu {
 	Clear Carry Flag
 	Set the carry flag to zero.
 	*/
-	private void clc(Mode mode, ubyte immediate, ushort address) {
+	private void clc() {
 		setCarryFlag(false);
 	}
 	
@@ -637,7 +637,7 @@ class Cpu {
 	Clear Decimal Mode
 	Not used in nes.
 	*/
-	private void cld(Mode mode, ubyte immediate, ushort address) {
+	private void cld() {
 		setDecimalModeFlag(false);
 	}
 	
@@ -645,7 +645,7 @@ class Cpu {
 	Clear Interrupt Disable
 	Clears the interrupt disable flag allowing normal interrupt requests to be serviced.
 	*/
-	private void cli(Mode mode, ubyte immediate, ushort address) {
+	private void cli() {
 		setInterruptsDisabledFlag(false);
 	}
 	
@@ -653,7 +653,7 @@ class Cpu {
 	Clear Overflow Flag
 	Clears the overflow flag.
 	*/
-	private void clv(Mode mode, ubyte immediate, ushort address) {
+	private void clv() {
 		setOverflowFlag(false);
 	}
 	
@@ -662,7 +662,7 @@ class Cpu {
 	This instruction compares the contents of the accumulator with another memory held value and sets the zero and
 	carry flags as appropriate.
 	*/
-	private void cmp(Mode mode, ubyte immediate, ushort address) {
+	private void cmp() {
 		ubyte value = memory.read(mode, immediate, address);
 		setCarryFlag(getA() >= value);
 		setZeroFlag(getA() == value);
@@ -674,7 +674,7 @@ class Cpu {
 	This instruction compares the contents of the X register with another memory held value and sets the zero and
 	carry flags as appropriate.
 	*/
-	private void cpx(Mode mode, ubyte immediate, ushort address) {
+	private void cpx() {
 		ubyte value = memory.read(mode, immediate, address);
 		setCarryFlag(getX() >= value);
 		setZeroFlag(getX() == value);
@@ -686,7 +686,7 @@ class Cpu {
 	This instruction compares the contents of the Y register with another memory held value and sets the zero and carry
 	flags as appropriate.
 	*/
-	private void cpy(Mode mode, ubyte immediate, ushort address) {
+	private void cpy() {
 		ubyte value = memory.read(mode, immediate, address);
 		setCarryFlag(getY() >= value);
 		setZeroFlag(getY() == value);
@@ -697,16 +697,16 @@ class Cpu {
 	Equivalent to DEC value then CMP value, except supporting more addressing modes. LDA #$FF followed by DCP can be
 	used to check if the decrement underflows, which is useful for multi-byte decrements.
 	*/
-	private void dcp(Mode mode, ubyte immediate, ushort address) {
-		dec(mode, immediate, address);
-		cmp(mode, immediate, address);
+	private void dcp() {
+		dec();
+		cmp();
 	}
 	
 	/*
 	Decrement Memory
 	Subtracts one from the value held at a specified memory location setting the zero and negative flags as appropriate.
 	*/
-	private void dec(Mode mode, ubyte immediate, ushort address) {
+	private void dec() {
 		ubyte value = memory.read(mode, immediate, address);
 		value--;
 		memory.write(mode, immediate, address, value);
@@ -718,7 +718,7 @@ class Cpu {
 	Decrement X Register
 	Subtracts one from the X register setting the zero and negative flags as appropriate.
 	*/
-	private void dex(Mode mode, ubyte immediate, ushort address) {
+	private void dex() {
 		ubyte value = getX();
 		value--;
 		setX(value);
@@ -730,7 +730,7 @@ class Cpu {
 	Decrement Y Register
 	Subtracts one from the Y register setting the zero and negative flags as appropriate.
 	*/
-	private void dey(Mode mode, ubyte immediate, ushort address) {
+	private void dey() {
 		ubyte value = getY();
 		value--;
 		setY(value);
@@ -742,7 +742,7 @@ class Cpu {
 	Exclusive OR
 	An exclusive OR is performed, bit by bit, on the accumulator contents using the contents of a byte of memory.
 	*/
-	private void eor(Mode mode, ubyte immediate, ushort address) {
+	private void eor() {
 		ubyte value = memory.read(mode, immediate, address);
 		value ^= getA();
 		setA(value);
@@ -754,7 +754,7 @@ class Cpu {
 	Increment Memory
 	Adds one to the value held at a specified memory location setting the zero and negative flags as appropriate.
 	*/
-	private void inc(Mode mode, ubyte immediate, ushort address) {
+	private void inc() {
 		ubyte value = memory.read(mode, immediate, address);
 		value++;
 		memory.write(mode, immediate, address, value);
@@ -766,7 +766,7 @@ class Cpu {
 	Increment X Register
 	Adds one to the X register setting the zero and negative flags as appropriate.
 	*/
-	private void inx(Mode mode, ubyte immediate, ushort address) {
+	private void inx() {
 		ubyte value = getX();
 		value++;
 		setX(value);
@@ -778,7 +778,7 @@ class Cpu {
 	Increment Y Register
 	Adds one to the Y register setting the zero and negative flags as appropriate.
 	*/
-	private void iny(Mode mode, ubyte immediate, ushort address) {
+	private void iny() {
 		ubyte value = getY();
 		value++;
 		setY(value);
@@ -789,9 +789,9 @@ class Cpu {
 	/* UNOFFICIAL
 	Equivalent to INC value then SBC value, except supporting more addressing modes.
 	*/
-	private void isc(Mode mode, ubyte immediate, ushort address) {
-		inc(mode, immediate, address);
-		sbc(mode, immediate, address);
+	private void isc() {
+		inc();
+		sbc();
 		setOverflowFlag(false); //nestest expects this. don't know why, no documentation.
 	}
 	
@@ -799,7 +799,7 @@ class Cpu {
 	Jump
 	Sets the program counter to the address specified by the operand.
 	*/
-	private void jmp(Mode mode, ubyte immediate, ushort address) {
+	private void jmp() {
 		if(mode == Mode.ABS) setPC(address);
 		else if(mode == Mode.IND) {
 			ushort newPC = memory.read(address);
@@ -815,7 +815,7 @@ class Cpu {
 	The JSR instruction pushes the address (minus one) of the return point on to the stack and then sets the program
 	counter to the target memory address.
 	*/
-	private void jsr(Mode mode, ubyte immediate, ushort address) {
+	private void jsr() {
 		pushStack(cast(ushort) (getPC() - 1));
 		setPC(address);
 	}
@@ -826,16 +826,16 @@ class Cpu {
 	(d),Y addressing mode. Notice that the immediate is missing; the opcode that would have been LAX is affected by
 	line noise on the data bus. MOS 6502: even the bugs have bugs.
 	*/
-	private void lax(Mode mode, ubyte immediate, ushort address) {
-		lda(mode, immediate, address);
-		tax(mode, immediate, address);
+	private void lax() {
+		lda();
+		tax();
 	}
 	
 	/*
 	Load Accumulator
 	Loads a byte of memory into the accumulator setting the zero and negative flags as appropriate.
 	*/
-	private void lda(Mode mode, ubyte immediate, ushort address) {
+	private void lda() {
 		ubyte value = memory.read(mode, immediate, address);
 		setA(value);
 		updateZeroFlag(value);
@@ -846,7 +846,7 @@ class Cpu {
 	Load X Register
 	Loads a byte of memory into the X register setting the zero and negative flags as appropriate.
 	*/
-	private void ldx(Mode mode, ubyte immediate, ushort address) {
+	private void ldx() {
 		ubyte value = memory.read(mode, immediate, address);
 		setX(value);
 		updateZeroFlag(value);
@@ -857,7 +857,7 @@ class Cpu {
 	Load Y Register
 	Loads a byte of memory into the Y register setting the zero and negative flags as appropriate.
 	*/
-	private void ldy(Mode mode, ubyte immediate, ushort address) {
+	private void ldy() {
 		ubyte value = memory.read(mode, immediate, address);
 		setY(value);
 		updateZeroFlag(value);
@@ -869,7 +869,7 @@ class Cpu {
 	Each of the bits in A or M is shift one place to the right. The bit that was in bit 0 is shifted into the carry
 	flag. Bit 7 is set to zero.
 	*/
-	private void lsr(Mode mode, ubyte immediate, ushort address) {
+	private void lsr() {
 		ubyte value = memory.read(mode, immediate, address);
 		setCarryFlag(cast(bool) (value & 1));
 		value >>= 1;
@@ -883,7 +883,7 @@ class Cpu {
 	The NOP instruction causes no changes to the processor other than the normal incrementing of the program counter to
 	the next instruction.
 	*/
-	private void nop(Mode mode, ubyte immediate, ushort address) {
+	private void nop() {
 		
 	}
 	
@@ -891,7 +891,7 @@ class Cpu {
 	Logical Inclusive OR
 	An inclusive OR is performed, bit by bit, on the accumulator contents using the contents of a byte of memory.
 	*/
-	private void ora(Mode mode, ubyte immediate, ushort address) {
+	private void ora() {
 		ubyte value = memory.read(mode, immediate, address);
 		value |= getA();
 		setA(value);
@@ -903,7 +903,7 @@ class Cpu {
 	Push Accumulator
 	Pushes a copy of the accumulator on to the stack.
 	*/
-	private void pha(Mode mode, ubyte immediate, ushort address) {
+	private void pha() {
 		pushStack(getA());
 	}
 	
@@ -911,7 +911,7 @@ class Cpu {
 	Push Processor Status
 	Pushes a copy of the status flags on to the stack.
 	*/
-	private void php(Mode mode, ubyte immediate, ushort address) {
+	private void php() {
 		ubyte pushP = getP();
 		pushP |= 0b00100000; //bit 5 always set
 		pushP |= 0b00010000; //bit 4 set for brk and php
@@ -921,7 +921,7 @@ class Cpu {
 	Pull Accumulator
 	Pulls an 8 bit value from the stack and into the accumulator. The zero and negative flags are set as appropriate.
 	*/
-	private void pla(Mode mode, ubyte immediate, ushort address) {
+	private void pla() {
 		setA(popStack());
 		updateZeroFlag(getA());
 		updateNegativeFlag(getA());
@@ -932,7 +932,7 @@ class Cpu {
 	Pulls an 8 bit value from the stack and into the processor flags. The flags will take on new states as determined
 	by the value pulled. break flag will be ignored
 	*/
-	private void plp(Mode mode, ubyte immediate, ushort address) {
+	private void plp() {
 		ubyte newP = popStack() & ~(breakFlagMask); //ignore break flag
 		newP |= 0b00100000; //nestest requires bit 5 to be set when loading
 		setP((getP() & breakFlagMask) | newP); //keep old break flag(?)
@@ -943,9 +943,9 @@ class Cpu {
 	Equivalent to ROL value then AND value, except supporting more addressing modes.
 	LDA #$FF followed by RLA is an efficient way to rotate a variable while also loading it in A.
 	*/
-	private void rla(Mode mode, ubyte immediate, ushort address) {
-		rol(mode, immediate, address);
-		and(mode, immediate, address);
+	private void rla() {
+		rol();
+		and();
 	}
 	
 	/*
@@ -953,7 +953,7 @@ class Cpu {
 	Move each of the bits in either A or M one place to the left. Bit 0 is filled with the current value of the carry
 	flag whilst the old bit 7 becomes the new carry flag value.
 	*/
-	private void rol(Mode mode, ubyte immediate, ushort address) {
+	private void rol() {
 		ubyte value = memory.read(mode, immediate, address);
 		ubyte oldCarryFlag = getCarryFlagValue();
 		setCarryFlag(cast(bool) (value & 0b10000000));
@@ -969,7 +969,7 @@ class Cpu {
 	Move each of the bits in either A or M one place to the right. Bit 7 is filled with the current value of the carry
 	flag whilst the old bit 0 becomes the new carry flag value.
 	*/
-	private void ror(Mode mode, ubyte immediate, ushort address) {
+	private void ror() {
 		ubyte value = memory.read(mode, immediate, address);
 		ubyte oldCarryFlag = getCarryFlagValue();
 		setCarryFlag(cast(bool) (value & 0b00000001));
@@ -984,9 +984,9 @@ class Cpu {
 	Equivalent to ROR value then ADC value, except supporting more addressing modes.
 	Essentially this computes A + value / 2, where value is 9-bit and the division is rounded up.
 	*/
-	private void rra(Mode mode, ubyte immediate, ushort address) {
-		ror(mode, immediate, address);
-		adc(mode, immediate, address);
+	private void rra() {
+		ror();
+		adc();
 	}
 	
 	/*
@@ -994,7 +994,7 @@ class Cpu {
 	The RTI instruction is used at the end of an interrupt processing routine. It pulls the processor flags (except break flag) from the
 	stack followed by the program counter.
 	*/
-	private void rti(Mode mode, ubyte immediate, ushort address) {
+	private void rti() {
 		ubyte newP = popStack() & ~(breakFlagMask); //ignore break flag
 		newP |= 0b00100000; //nestest requires bit 5 to be set when loading
 		setP((getP() & breakFlagMask) | newP); //keep old break flag
@@ -1006,14 +1006,14 @@ class Cpu {
 	The RTS instruction is used at the end of a subroutine to return to the calling routine. It pulls the program
 	counter (minus one) from the stack.
 	*/
-	private void rts(Mode mode, ubyte immediate, ushort address) {
+	private void rts() {
 		setPC(popStack16() + 1);
 	}
 	
 	/* UNOFFICIAL
 	Stores the bitwise AND of A and X. As with STA and STX, no flags are affected.
 	*/
-	private void sax(Mode mode, ubyte immediate, ushort address) {
+	private void sax() {
 		memory.write(mode, immediate, address, getA() & getX());
 	}
 	
@@ -1022,7 +1022,7 @@ class Cpu {
 	This instruction subtracts the contents of a memory location to the accumulator together with the not of the carry
 	bit. If overflow occurs the carry bit is clear, this enables multiple byte subtraction to be performed.
 	*/
-	private void sbc(Mode mode, ubyte immediate, ushort address) {
+	private void sbc() {
 		ubyte value = memory.read(mode, immediate, address);
 		ubyte carry = getCarryFlag() ? 0 : 1;
 		int signedResult = (cast(byte) (getA())) - value - carry; //TODO make this better
@@ -1038,7 +1038,7 @@ class Cpu {
 	Set Carry Flag
 	Set the carry flag to one.
 	*/
-	private void sec(Mode mode, ubyte immediate, ushort address) {
+	private void sec() {
 		setCarryFlag(true);
 	}
 	
@@ -1046,7 +1046,7 @@ class Cpu {
 	Set Decimal Flag
 	Set the decimal mode flag to one.
 	*/
-	private void sed(Mode mode, ubyte immediate, ushort address) {
+	private void sed() {
 		setDecimalModeFlag(true);
 	}
 	
@@ -1054,7 +1054,7 @@ class Cpu {
 	Set Interrupt Disable
 	Set the interrupt disable flag to one.
 	*/
-	private void sei(Mode mode, ubyte immediate, ushort address) {
+	private void sei() {
 		setInterruptsDisabledFlag(true);
 	}
 	
@@ -1062,25 +1062,25 @@ class Cpu {
 	Equivalent to ASL value then ORA value, except supporting more addressing modes. LDA #0 followed by SLO is an
 	efficient way to shift a variable while also loading it in A.
 	*/
-	private void slo(Mode mode, ubyte immediate, ushort address) {
-		asl(mode, immediate, address);
-		ora(mode, immediate, address);
+	private void slo() {
+		asl();
+		ora();
 	}
 	
 	/* UNOFFICIAL
 	Equivalent to LSR value then EOR value, except supporting more addressing modes. LDA #0 followed by SRE is an
 	efficient way to shift a variable while also loading it in A.
 	*/
-	private void sre(Mode mode, ubyte immediate, ushort address) {
-		lsr(mode, immediate, address);
-		eor(mode, immediate, address);
+	private void sre() {
+		lsr();
+		eor();
 	}
 	
 	/*
 	Store Accumulator
 	Stores the contents of the accumulator into memory.
 	*/
-	private void sta(Mode mode, ubyte immediate, ushort address) {
+	private void sta() {
 		memory.write(mode, immediate, address, getA());
 	}
 	
@@ -1088,7 +1088,7 @@ class Cpu {
 	Store X Register
 	Stores the contents of the X register into memory.
 	*/
-	private void stx(Mode mode, ubyte immediate, ushort address) {
+	private void stx() {
 		memory.write(mode, immediate, address, getX());
 	}
 	
@@ -1096,7 +1096,7 @@ class Cpu {
 	Store Y Register
 	Stores the contents of the Y register into memory.
 	*/
-	private void sty(Mode mode, ubyte immediate, ushort address) {
+	private void sty() {
 		memory.write(mode, immediate, address, getY());
 	}
 	
@@ -1105,7 +1105,7 @@ class Cpu {
 	Copies the current contents of the accumulator into the X register and sets the zero and negative flags as
 	appropriate.
 	*/
-	private void tax(Mode mode, ubyte immediate, ushort address) {
+	private void tax() {
 		setX(getA());
 		updateZeroFlag(getX());
 		updateNegativeFlag(getX());
@@ -1116,7 +1116,7 @@ class Cpu {
 	Copies the current contents of the accumulator into the Y register and sets the zero and negative flags as
 	appropriate.
 	*/
-	private void tay(Mode mode, ubyte immediate, ushort address) {
+	private void tay() {
 		setY(getA());
 		updateZeroFlag(getY());
 		updateNegativeFlag(getY());
@@ -1127,7 +1127,7 @@ class Cpu {
 	Copies the current contents of the stack register into the X register and sets the zero and negative flags as
 	appropriate.
 	*/
-	private void tsx(Mode mode, ubyte immediate, ushort address) {
+	private void tsx() {
 		setX(getSP());
 		updateZeroFlag(getX());
 		updateNegativeFlag(getX());
@@ -1138,7 +1138,7 @@ class Cpu {
 	Copies the current contents of the X register into the accumulator and sets the zero and negative flags as
 	appropriate.
 	*/
-	private void txa(Mode mode, ubyte immediate, ushort address) {
+	private void txa() {
 		setA(getX());
 		updateZeroFlag(getA());
 		updateNegativeFlag(getA());
@@ -1148,7 +1148,7 @@ class Cpu {
 	Transfer X to Stack Pointer
 	Copies the current contents of the X register into the stack register.
 	*/
-	private void txs(Mode mode, ubyte immediate, ushort address) {
+	private void txs() {
 		setSP(getX());
 	}
 	
@@ -1157,7 +1157,7 @@ class Cpu {
 	Copies the current contents of the Y register into the accumulator and sets the zero and negative flags as
 	appropriate.
 	*/
-	private void tya(Mode mode, ubyte immediate, ushort address) {
+	private void tya() {
 		setA(getY());
 		updateZeroFlag(getA());
 		updateNegativeFlag(getA());
