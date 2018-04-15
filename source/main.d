@@ -23,6 +23,8 @@ void loadDerelict() {
 void runRom(string romPath) {
     Nes nes = new Nes();
     Rom rom = new Rom(romPath);
+    nes.setDebugUIActive(false);
+    nes.setLimitFrameRate(true);
     nes.startUI();
     nes.loadRom(rom);
     nes.powerUp();
