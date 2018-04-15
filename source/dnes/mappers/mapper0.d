@@ -35,36 +35,36 @@ tile animation can be done by swapping between pattern tables $0000 and $1000,
 using PPUCTRL bits 4-3 as a "poor man's CNROM".
 **/
 class Mapper0 : Mapper {
-	
-	private Nes nes;
-	private Rom rom;
-	
-	public this(Nes nes, Rom rom) {
-		this.nes = nes;
-		this.rom = rom;
-	}
-	
-	public ubyte cpuRead(ushort address) {
-		if(address < 0x8000) assert(false);
-		if(address >= 0xc000) return rom.prgBanks[$-1][address - 0xc000];//last bank or first
-		return rom.prgBanks[0][address - 0x8000];
-	}
-	
-	public void cpuWrite(ushort address, ubyte value) {
-		//no registers
-	}
-	
-	public ubyte chrRead(ushort address) {
-		//writefln("mapper read chr address: %x value: %x", address, rom.chrBanks[0][address]);
-		return rom.chrBanks[0][address];
-	}
-	
-	public void chrWrite(ushort address, ubyte value) {
-		assert(false);
-	}
-	
-	public bool useChrRom(ushort address) {
-		return rom.chrBanks.length > 0 && address < 0x2000;
-	}
-	
+    
+    private Nes nes;
+    private Rom rom;
+    
+    public this(Nes nes, Rom rom) {
+        this.nes = nes;
+        this.rom = rom;
+    }
+    
+    public ubyte cpuRead(ushort address) {
+        if(address < 0x8000) assert(false);
+        if(address >= 0xc000) return rom.prgBanks[$-1][address - 0xc000];//last bank or first
+        return rom.prgBanks[0][address - 0x8000];
+    }
+    
+    public void cpuWrite(ushort address, ubyte value) {
+        //no registers
+    }
+    
+    public ubyte chrRead(ushort address) {
+        //writefln("mapper read chr address: %x value: %x", address, rom.chrBanks[0][address]);
+        return rom.chrBanks[0][address];
+    }
+    
+    public void chrWrite(ushort address, ubyte value) {
+        assert(false);
+    }
+    
+    public bool useChrRom(ushort address) {
+        return rom.chrBanks.length > 0 && address < 0x2000;
+    }
+    
 }
